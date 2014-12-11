@@ -4,11 +4,25 @@
 #include <linux/netfilter_ipv4.h>
 
 static struct nf_hook_ops nfho;
+struct sk_buff *sock_buff;
+struct tcphdr *tcp_header;
+struct iphdr *ip_header;
 
 unsigned int hook_func(const struct nf_hook_ops *ops, struct sk_buff **skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
-  printk(KERN_INFO "packet seen\n");
-  return NF_QUEUE;
+  sock_buff = *skb;
+  if (!sock_buff) {
+    return NF_ACCEPT;
+  }
+
+  ip_header = (struct iphdr *)skb_network_header(sock_buff);
+  if (ip_header->protocol == 6) {
+    tcp_header = (struct tcphdr *)skb_transport_header(sock_buff);
+    if (tcp_header->source == 5001) {
+      return NF_QUEUE;
+    }
+  }
+  return NF_ACCEPT;
 }
 
 int init_module(void)
