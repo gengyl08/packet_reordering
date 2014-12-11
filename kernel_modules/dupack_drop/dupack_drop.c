@@ -2,6 +2,9 @@
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/ip.h>
+#include <linux/tcp.h>
+#include <linux/skbuff.h>
 
 static struct nf_hook_ops nfho;
 struct sk_buff *sock_buff;
