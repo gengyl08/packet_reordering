@@ -31,7 +31,7 @@ int dupack_drop_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuen
     return 0;
   }
 
-  if (ack_seq_new > ack_seq_old) {
+  if ((__s32)(ack_seq_new - ack_seq_old) > 0) {
 
     ack_seq_old = ack_seq_new;
     if (dupack_count == 1) {
