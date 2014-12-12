@@ -2,7 +2,8 @@ obj-m += dupack_drop.o
 obj-m += dupack_drop_queue.o
 KDIR = /lib/modules/$(shell uname -r)/build
 PWD = $(shell pwd)
-all:
+all: clean compile rmmod insmod
+compile:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 clean:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) clean
