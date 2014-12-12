@@ -27,21 +27,38 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
   tcp_header = (struct tcphdr *)((unsigned char *)ip_header + (((__u32)(ip_header->ihl))<<2));
   seq = be32_to_cpu(tcp_header->seq);
   length = (__u32)be16_to_cpu(ip_header->tot_len) - (((__u32)ip_header->ihl)<<2) - (((__u32)tcp_header->doff)<<2);
+  //nf_reinject(entry, NF_ACCEPT);
+  //printk(KERN_INFO "seq: %u\n", seq);
+  //printk(KERN_INFO "len: %u\n", length);
 
   if (tcp_header->syn) {
     seq_next = seq + 1;
     has_reorder = false;
     nf_reinject(entry, NF_ACCEPT);
+    //printk(KERN_INFO "syn\n");
+    return 0;
+  }
+
+  if (length == 0) {
+    if (has_reorder) {
+        nf_reinject(entry_saved, NF_ACCEPT);
+        has_reorder = false;
+    }
+    nf_reinject(entry, NF_ACCEPT);
+    //printk(KERN_INFO "fin\n");
     return 0;
   }
 
   if((__s32)(seq - seq_next) < 0) {
+    //printk(KERN_INFO "lost\n");
     nf_reinject(entry, NF_ACCEPT);
+    return 0;
   }
 
   if(!has_reorder) {
     if (seq == seq_next) {
         seq_next = seq + length;
+        //printk(KERN_INFO "correct\n");
         nf_reinject(entry, NF_ACCEPT);
     }
     else {
@@ -58,7 +75,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
     else {
       seq_next = seq + length;
     }
-
+    //printk(KERN_INFO "reorder\n");
     if ((__s32)(seq - seq_saved) < 0) {
       nf_reinject(entry, NF_ACCEPT);
       nf_reinject(entry_saved, NF_ACCEPT);
