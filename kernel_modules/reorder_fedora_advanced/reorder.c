@@ -46,3 +46,5 @@ void cleanup_module(void)
   printk(KERN_INFO "unregister reorder\n");
   nf_unregister_hook(&nfho);
 }
+
+MODULE_LICENSE("GPL");

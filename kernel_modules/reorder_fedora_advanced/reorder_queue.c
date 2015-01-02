@@ -38,21 +38,11 @@ struct nf_queue_entry_node *reorder_queue_tail = NULL;
 unsigned reorder_count = 0;
 __u32 seq_next = 0;
 
-struct hrtimer;
+struct hrtimer hr_timer;
 ktime_t ktime;
 
-enum hrtimer_restart hrtimer_callback(struct hrtimer *timer) {
-
-  spin_lock(&reorder_queue_lock);
-
-  flush_reorder_queue(NULL);
-
-  spin_unlock(&reorder_queue_lock);
-  return HRTIMER_NORESTART;
-}
-
-void flush_reorder_queue(nf_queue_entry_node *stop) {
-  nf_queue_entry_node *tmp;
+void flush_reorder_queue(struct nf_queue_entry_node *stop) {
+  struct nf_queue_entry_node *tmp;
 
   while (reorder_queue_head!=stop && reorder_queue_head != NULL) {
     nf_reinject(reorder_queue_head->entry, NF_ACCEPT);
@@ -68,11 +58,21 @@ void flush_reorder_queue(nf_queue_entry_node *stop) {
   }
 }
 
+enum hrtimer_restart hrtimer_callback(struct hrtimer *timer) {
+
+  spin_lock(&reorder_queue_lock);
+
+  flush_reorder_queue(NULL);
+
+  spin_unlock(&reorder_queue_lock);
+  return HRTIMER_NORESTART;
+}
+
 int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 {
 
-  nf_queue_entry_node *node_tmp;
-  nf_queue_entry_node *node_tmp1;
+  struct nf_queue_entry_node *node_tmp;
+  struct nf_queue_entry_node *node_tmp1;
 
   ip_header = (struct iphdr *)skb_network_header(entry->skb);
   tcp_header = (struct tcphdr *)((unsigned char *)ip_header + (((__u32)(ip_header->ihl))<<2));
@@ -83,8 +83,8 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
   //printk(KERN_INFO "seq: %u\n", seq);
   //printk(KERN_INFO "len: %u\n", length);
 
-  hrtimer_cancel(&hrtimer);
-  hrtimer_start(&hrtimer, ktime, HRTIMER_MODE_REL);
+  hrtimer_cancel(&hr_timer);
+  hrtimer_start(&hr_timer, ktime, HRTIMER_MODE_REL);
 
   spin_lock(&reorder_queue_lock);
 
@@ -113,7 +113,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
     //printk(KERN_INFO "lost\n");
     nf_reinject(entry, NF_ACCEPT);
 
-  } else if ((_s32)(seq - seq_next) <= 0) {
+  } else if ((__s32)(seq - seq_next) <= 0) {
 
     nf_reinject(entry, NF_ACCEPT);
     seq_next = seq_next_tmp;
@@ -168,7 +168,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
         if (node_tmp == NULL) {
           if ((__s32)(seq - reorder_queue_tail->seq_next) < 0) {
             flush_reorder_queue(NULL);
-            nf_reinject(entry, NULL);
+            nf_reinject(entry, NF_ACCEPT);
             if ((__s32)(seq_next - seq_next_tmp) < 0) {
               seq_next = seq_next_tmp;
             }
@@ -201,7 +201,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
           } else {
             if ((__s32)(seq - node_tmp->prev->seq_next) < 0) {
               flush_reorder_queue(node_tmp);
-              nf_reinject(entry, NULL);
+              nf_reinject(entry, NF_ACCEPT);
               if ((__s32)(seq_next - seq_next_tmp) < 0) {
                 seq_next = seq_next_tmp;
               }
@@ -235,8 +235,8 @@ int init_module(void)
   nf_register_queue_handler(NFPROTO_IPV4, &nfqh);
 
   ktime = ktime_set(0, REORDER_QUEUE_TIMEOUT);
-  hrtimer_init(&hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-  hrtimer.function = hrtimer_callback;
+  hrtimer_init(&hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+  hr_timer.function = hrtimer_callback;
 
   return 0;
 }
@@ -245,8 +245,10 @@ void cleanup_module(void)
 {
   printk(KERN_INFO "unregister reorder_queue\n");
 
-  hrtimer_cancel(&hrtimer);
+  hrtimer_cancel(&hr_timer);
 
   nf_unregister_queue_handler(NFPROTO_IPV4, &nfqh);
 
 }
+
+MODULE_LICENSE("GPL");
