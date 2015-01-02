@@ -9,8 +9,11 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/hrtimer.h>
+#include <linux/ktime.h>
 
 #define MAX_REORDER_COUNT 10
+#define REORDER_QUEUE_TIMEOUT 100000
 
 struct nf_queue_handler nfqh;
 
@@ -34,6 +37,19 @@ struct nf_queue_entry_node *reorder_queue_head = NULL;
 struct nf_queue_entry_node *reorder_queue_tail = NULL;
 unsigned reorder_count = 0;
 __u32 seq_next = 0;
+
+struct hrtimer;
+ktime_t ktime;
+
+enum hrtimer_restart hrtimer_callback(struct hrtimer *timer) {
+
+  spin_lock(&reorder_queue_lock);
+
+  flush_reorder_queue(NULL);
+
+  spin_unlock(&reorder_queue_lock);
+  return HRTIMER_NORESTART;
+}
 
 void flush_reorder_queue(nf_queue_entry_node *stop) {
   nf_queue_entry_node *tmp;
@@ -66,6 +82,9 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
   //nf_reinject(entry, NF_ACCEPT);
   //printk(KERN_INFO "seq: %u\n", seq);
   //printk(KERN_INFO "len: %u\n", length);
+
+  hrtimer_cancel(&hrtimer);
+  hrtimer_start(&hrtimer, ktime, HRTIMER_MODE_REL);
 
   spin_lock(&reorder_queue_lock);
 
@@ -214,11 +233,20 @@ int init_module(void)
   printk(KERN_INFO "register reorder_queue\n");
   nfqh.outfn = reorder_queue_enqueue_packet;
   nf_register_queue_handler(NFPROTO_IPV4, &nfqh);
+
+  ktime = ktime_set(0, REORDER_QUEUE_TIMEOUT);
+  hrtimer_init(&hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+  hrtimer.function = hrtimer_callback;
+
   return 0;
 }
 
 void cleanup_module(void)
 {
   printk(KERN_INFO "unregister reorder_queue\n");
+
+  hrtimer_cancel(&hrtimer);
+
   nf_unregister_queue_handler(NFPROTO_IPV4, &nfqh);
+
 }
