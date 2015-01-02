@@ -32,7 +32,7 @@ struct nf_queue_entry_node {
   struct nf_queue_entry_node *next;
 };
 
-spinlock_t reorder_queue_lock = SPIN_LOCK_UNLOCKED;
+spinlock_t reorder_queue_lock;
 struct nf_queue_entry_node *reorder_queue_head = NULL;
 struct nf_queue_entry_node *reorder_queue_tail = NULL;
 unsigned reorder_count = 0;
@@ -233,6 +233,8 @@ int init_module(void)
   printk(KERN_INFO "register reorder_queue\n");
   nfqh.outfn = reorder_queue_enqueue_packet;
   nf_register_queue_handler(&nfqh);
+
+  spin_lock_init(&reorder_queue_lock);
 
   ktime = ktime_set(0, REORDER_QUEUE_TIMEOUT);
   hrtimer_init(&hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
