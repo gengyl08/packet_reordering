@@ -13,7 +13,7 @@
 #include <linux/ktime.h>
 
 #define MAX_REORDER_COUNT 10
-#define REORDER_QUEUE_TIMEOUT 100000
+#define REORDER_QUEUE_TIMEOUT 1E6
 
 struct nf_queue_handler nfqh;
 
@@ -32,7 +32,8 @@ struct nf_queue_entry_node {
   struct nf_queue_entry_node *next;
 };
 
-spinlock_t reorder_queue_lock = SPIN_LOCK_UNLOCKED;
+spinlock_t reorder_queue_lock;
+unsigned long reorder_queue_lock_flags;
 struct nf_queue_entry_node *reorder_queue_head = NULL;
 struct nf_queue_entry_node *reorder_queue_tail = NULL;
 unsigned reorder_count = 0;
@@ -60,11 +61,11 @@ void flush_reorder_queue(struct nf_queue_entry_node *stop) {
 
 enum hrtimer_restart hrtimer_callback(struct hrtimer *timer) {
 
-  spin_lock(&reorder_queue_lock);
+  spin_lock_irqsave(&reorder_queue_lock, reorder_queue_lock_flags);
 
   flush_reorder_queue(NULL);
 
-  spin_unlock(&reorder_queue_lock);
+  spin_unlock_irqrestore(&reorder_queue_lock, reorder_queue_lock_flags);
   return HRTIMER_NORESTART;
 }
 
@@ -86,14 +87,14 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
   //hrtimer_cancel(&hr_timer);
   hrtimer_start(&hr_timer, ktime, HRTIMER_MODE_REL);
 
-  spin_lock(&reorder_queue_lock);
+  spin_lock_irqsave(&reorder_queue_lock, reorder_queue_lock_flags);
 
   if (tcp_header->syn) {
     flush_reorder_queue(NULL);
     seq_next = seq + 1;
     nf_reinject(entry, NF_ACCEPT);
     //printk(KERN_INFO "syn\n");
-    spin_unlock(&reorder_queue_lock);
+    spin_unlock_irqrestore(&reorder_queue_lock, reorder_queue_lock_flags);
     return 0;
   }
 
@@ -104,7 +105,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
     }
     nf_reinject(entry, NF_ACCEPT);
     //printk(KERN_INFO "fin\n");
-    spin_unlock(&reorder_queue_lock);
+    spin_unlock_irqrestore(&reorder_queue_lock, reorder_queue_lock_flags);
     return 0;
   }
 
@@ -145,7 +146,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
 
       if (reorder_queue_head == NULL) {
 
-        reorder_queue_head = kmalloc(sizeof(struct nf_queue_entry_node), GFP_KERNEL);
+        reorder_queue_head = kmalloc(sizeof(struct nf_queue_entry_node), GFP_ATOMIC);
         reorder_queue_tail = reorder_queue_head;
         reorder_count = 1;
         reorder_queue_head->entry = entry;
@@ -173,7 +174,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
               seq_next = seq_next_tmp;
             }
           } else {  
-            node_tmp1 = kmalloc(sizeof(struct nf_queue_entry_node), GFP_KERNEL);
+            node_tmp1 = kmalloc(sizeof(struct nf_queue_entry_node), GFP_ATOMIC);
             node_tmp1->entry = entry;
             node_tmp1->seq = seq;
             node_tmp1->seq_next =seq_next_tmp;
@@ -187,7 +188,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
           }
         } else {
           if (node_tmp->prev == NULL) {
-            node_tmp1 = kmalloc(sizeof(struct nf_queue_entry_node), GFP_KERNEL);
+            node_tmp1 = kmalloc(sizeof(struct nf_queue_entry_node), GFP_ATOMIC);
             node_tmp1->entry = entry;
             node_tmp1->seq = seq;
             node_tmp1->seq_next =seq_next_tmp;
@@ -206,7 +207,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
                 seq_next = seq_next_tmp;
               }
             } else {
-              node_tmp1 = kmalloc(sizeof(struct nf_queue_entry_node), GFP_KERNEL);
+              node_tmp1 = kmalloc(sizeof(struct nf_queue_entry_node), GFP_ATOMIC);
               node_tmp1->entry = entry;
               node_tmp1->seq = seq;
               node_tmp1->seq_next =seq_next_tmp;
@@ -224,7 +225,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
     }
   }
 
-  spin_unlock(&reorder_queue_lock);
+  spin_unlock_irqrestore(&reorder_queue_lock, reorder_queue_lock_flags);
   return 0;
 }
 
@@ -233,6 +234,8 @@ int init_module(void)
   printk(KERN_INFO "register reorder_queue\n");
   nfqh.outfn = reorder_queue_enqueue_packet;
   nf_register_queue_handler(NFPROTO_IPV4, &nfqh);
+
+  spin_lock_init(&reorder_queue_lock);
 
   ktime = ktime_set(0, REORDER_QUEUE_TIMEOUT);
   hrtimer_init(&hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
