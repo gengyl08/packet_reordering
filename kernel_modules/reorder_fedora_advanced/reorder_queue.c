@@ -83,7 +83,7 @@ int reorder_queue_enqueue_packet(struct nf_queue_entry *entry, unsigned int queu
   //printk(KERN_INFO "seq: %u\n", seq);
   //printk(KERN_INFO "len: %u\n", length);
 
-  hrtimer_cancel(&hr_timer);
+  //hrtimer_cancel(&hr_timer);
   hrtimer_start(&hr_timer, ktime, HRTIMER_MODE_REL);
 
   spin_lock(&reorder_queue_lock);
