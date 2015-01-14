@@ -24,8 +24,8 @@ def read_stats():
     result = {}
 
     # interrupt
-    result['eth0-rx'] = int(subprocess.Popen('cat /proc/interrupts | grep eth0-rx'.split(), stdout=subprocess.PIPE).communicate()[0].split()[1])
-    result['eth0-tx'] = int(subprocess.Popen('cat /proc/interrupts | grep eth0-tx'.split(), stdout=subprocess.PIPE).communicate()[0].split()[1])
+    result['eth0-rx'] = int(subprocess.Popen('grep eth0-rx /proc/interrupts'.split(), stdout=subprocess.PIPE).communicate()[0].split()[1])
+    result['eth0-tx'] = int(subprocess.Popen('grep eth0-tx /proc/interrupts'.split(), stdout=subprocess.PIPE).communicate()[0].split()[1])
 
     # ifconfig
     lines = ifconfig_str.split('\n')
