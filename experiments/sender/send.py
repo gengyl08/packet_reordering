@@ -40,16 +40,16 @@ def read_stats():
 
     # tcp segments
     for line in netstat_str.split('\n'):
-    	for key in segment_keys:
-    		if line.find(key) >= 0:
-    			result[key] = int(line.split()[0])
-    			break;
+        for key in segment_keys:
+            if line.find(key) >= 0:
+                result[key] = int(line.split()[0])
+                break;
 
     # netstat
     tcpExt_keys = tcpExt_str.split('\n')[0].split()[1:]
     tcpExt_values = [int(x) for x in tcpExt_str.split('\n')[1].split()[1:]]
     for i in range(len(tcpExt_keys)):
-    	result[tcpExt_keys[i]] = tcpExt_values[i]
+        result[tcpExt_keys[i]] = tcpExt_values[i]
 
     return result
 
@@ -59,7 +59,7 @@ if __name__=="__main__":
     args = parser.parse_args()
 
     if args.offload:
-    	subprocess.call('sudo ethtool -K eth0 tso on'.split())
+        subprocess.call('sudo ethtool -K eth0 tso on'.split())
         subprocess.call('sudo ethtool -K eth0 gso on'.split())
         subprocess.call('sudo ethtool -K eth0 gro on'.split())
     else:
@@ -69,7 +69,7 @@ if __name__=="__main__":
 
     result1 = read_stats()
 
-    subprocess.call(['taskset', '-c', str(args.core), 'iperf', '-c', '192.168.0.2', '-i', '1'], stdout=subprocess.STDOUT, stderr=subprocess.STDOUT)
+    subprocess.call(['taskset', '-c', str(args.core), 'iperf', '-c', '192.168.0.2', '-i', '1'])
 
 
     result2 = read_stats()
