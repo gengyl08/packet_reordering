@@ -90,6 +90,6 @@ if __name__=="__main__":
 
     print ''
     print '========== TcpExt =========='
-    for key in TcpExt_keys:
+    for key in tcpExt_keys:
         print result2[key] - result1[key], key
     
