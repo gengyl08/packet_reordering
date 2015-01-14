@@ -17,15 +17,15 @@ parser.add_argument('core', help='the core iperf runs on', type=int)
 parser.add_argument('offload', help='turn on/off various TCP offloads', type=bool)
 
 def read_stats():
-    ifconfig_str = subprocess.check_output('ifconfig eth0'.split(), shell=True)
-    netstat_str = subprocess.check_output('netstat -s'.split(), shell=True)
-    tcpExt_str = subprocess.check_output('cat /proc/net/netstat'.split(), shell=True)
+    ifconfig_str = subprocess.Popen('ifconfig eth0'.split(), stdout=subprocess.PIPE).communicate()[0]
+    netstat_str = subprocess.Popen('netstat -s'.split(), stdout=subprocess.PIPE).communicate()[0]
+    tcpExt_str = subprocess.Popen('cat /proc/net/netstat'.split(), stdout=subprocess.PIPE).communicate()[0]
 
     result = {}
 
     # interrupt
-    result['eth0-rx'] = int(subprocess.check_output('cat /proc/interrupts | grep eth0-rx'.split()).split()[1], shell=True)
-    result['eth0-tx'] = int(subprocess.check_output('cat /proc/interrupts | grep eth0-tx'.split()).split()[1], shell=True)
+    result['eth0-rx'] = int(subprocess.Popen('cat /proc/interrupts | grep eth0-rx'.split(), stdout=subprocess.PIPE).communicate()[0].split()[1])
+    result['eth0-tx'] = int(subprocess.Popen('cat /proc/interrupts | grep eth0-tx'.split(), stdout=subprocess.PIPE).communicate()[0].split()[1])
 
     # ifconfig
     lines = ifconfig_str.split('\n')
