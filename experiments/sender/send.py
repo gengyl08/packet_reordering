@@ -39,8 +39,8 @@ def read_stats():
     result['tx_bytes'] = int(lines[7].split()[5].split(':')[1])
 
     # tcp segments
-    for line in netstat_str.split('\n'):
-        for key in segment_keys:
+    for key in segment_keys:
+    	for line in netstat_str.split('\n'):
             if line.find(key) >= 0:
                 result[key] = int(line.split()[0])
                 break;
