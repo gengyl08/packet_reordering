@@ -10,7 +10,7 @@ ifconfig_keys = ['rx_packets', 'rx_errors', 'rx_dropped', 'rx_bytes',
 
 segment_keys = {'segments received', 'segments send out', 'segments retransmited', 'bad segments received'}
 
-tcpExt_keys = []
+tcpExt_keys = subprocess.Popen('cat /proc/net/netstat'.split(), stdout=subprocess.PIPE).communicate()[0].split('\n')[0].split()[1:]
 
 parser = argparse.ArgumentParser(description='Argument Parser')
 parser.add_argument('core', help='the core iperf runs on', type=int)
@@ -46,7 +46,6 @@ def read_stats():
                 break;
 
     # netstat
-    tcpExt_keys = tcpExt_str.split('\n')[0].split()[1:]
     tcpExt_values = [int(x) for x in tcpExt_str.split('\n')[1].split()[1:]]
     for i in range(len(tcpExt_keys)):
         result[tcpExt_keys[i]] = tcpExt_values[i]
