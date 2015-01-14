@@ -13,8 +13,8 @@ segment_keys = {'segments received', 'segments send out', 'segments retransmited
 tcpExt_keys = subprocess.Popen('cat /proc/net/netstat'.split(), stdout=subprocess.PIPE).communicate()[0].split('\n')[0].split()[1:]
 
 parser = argparse.ArgumentParser(description='Argument Parser')
-parser.add_argument('core', help='the core iperf runs on', type=int)
-parser.add_argument('offload', help='turn on/off various TCP offloads', type=bool)
+parser.add_argument('-c', '--core', nargs=1, default=0, help='the core iperf runs on', type=int)
+parser.add_argument('-o', '--offload', nargs=1, default=True, help='turn on/off various TCP offloads', type=bool)
 
 def read_stats():
     ifconfig_str = subprocess.Popen('ifconfig eth0'.split(), stdout=subprocess.PIPE).communicate()[0]

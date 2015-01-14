@@ -12,8 +12,8 @@ receive_queue_keys = ['pkts_directly_queued_to_recvmsg_prequeue', 'pkts_received
 header_prediction_keys = ['pkts_header_predicted', 'pkts_header_predicted_and_directly_queued_to_user']
 
 parser = argparse.ArgumentParser(description='Argument Parser')
-parser.add_argument('core', help='the core iperf runs on', type=int)
-parser.add_argument('--lro_off', help='turn off large receive offload', action='store_true')
+parser.add_argument('-c', '--core', nargs=1, default=0, help='the core iperf runs on', type=int)
+parser.add_argument('-o', '--offload', nargs=1, default=True, help='turn on/off large receive offload', type=bool)
 
 def read_stats():
     netstat = subprocess.check_output('netstat -s'.split())
