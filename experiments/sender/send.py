@@ -58,10 +58,12 @@ if __name__=="__main__":
     args = parser.parse_args()
 
     if args.offload:
+    	print 'TCP offload on'
         subprocess.call('sudo ethtool -K eth0 tso on'.split())
         subprocess.call('sudo ethtool -K eth0 gso on'.split())
         subprocess.call('sudo ethtool -K eth0 gro on'.split())
     else:
+    	print 'TCP offload off'
         subprocess.call('sudo ethtool -K eth0 tso off'.split())
         subprocess.call('sudo ethtool -K eth0 gso off'.split())
         subprocess.call('sudo ethtool -K eth0 gro off'.split())
