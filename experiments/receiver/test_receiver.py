@@ -13,7 +13,7 @@ header_prediction_keys = ['pkts_header_predicted', 'pkts_header_predicted_and_di
 
 parser = argparse.ArgumentParser(description='Argument Parser')
 parser.add_argument('-c', '--core', nargs=1, default=0, help='the core iperf runs on', type=int)
-parser.add_argument('-o', '--offload', nargs=1, default=True, help='turn on/off large receive offload', type=bool)
+parser.add_argument('--offload', nargs=1, help='turn on/off large receive offload', action='store_true')
 
 def read_stats():
     netstat = subprocess.check_output('netstat -s'.split())

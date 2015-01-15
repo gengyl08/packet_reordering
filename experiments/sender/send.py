@@ -14,7 +14,7 @@ tcpExt_keys = subprocess.Popen('cat /proc/net/netstat'.split(), stdout=subproces
 
 parser = argparse.ArgumentParser(description='Argument Parser')
 parser.add_argument('-c', '--core', nargs=1, default=0, help='the core iperf runs on', type=int)
-parser.add_argument('-o', '--offload', nargs=1, default=True, help='turn on/off various TCP offloads', type=bool)
+parser.add_argument('--offload', help='turn on/off various TCP offloads', action='store_true')
 
 def read_stats():
     ifconfig_str = subprocess.Popen('ifconfig eth0'.split(), stdout=subprocess.PIPE).communicate()[0]
@@ -70,6 +70,7 @@ if __name__=="__main__":
 
     result1 = read_stats()
 
+    print 'running iperf on core %d' % args.core
     subprocess.call(['taskset', '-c', str(args.core), 'iperf', '-c', '192.168.0.2', '-i', '1'])
 
 
