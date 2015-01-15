@@ -14,7 +14,7 @@ tcpExt_keys = subprocess.Popen('cat /proc/net/netstat'.split(), stdout=subproces
 
 parser = argparse.ArgumentParser(description='Argument Parser')
 parser.add_argument('-c', '--core', nargs=1, default=0, help='the core iperf runs on', type=int)
-parser.add_argument('--offload', help='turn on/off various TCP offloads', action='store_true')
+parser.add_argument('--offload_off', help='turn on/off various TCP offloads', action='store_true')
 
 def read_stats():
     ifconfig_str = subprocess.Popen('ifconfig eth0'.split(), stdout=subprocess.PIPE).communicate()[0]
@@ -57,7 +57,7 @@ if __name__=="__main__":
 
     args = parser.parse_args()
 
-    if args.offload:
+    if not args.offload_off:
     	print 'TCP offload on'
         subprocess.call('sudo ethtool -K eth0 tso on'.split())
         subprocess.call('sudo ethtool -K eth0 gso on'.split())
