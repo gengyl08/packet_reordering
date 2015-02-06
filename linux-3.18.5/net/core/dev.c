@@ -3811,6 +3811,7 @@ int netif_receive_skb_internal(struct sk_buff *skb)
 #endif
 	return __netif_receive_skb(skb);
 }
+EXPORT_SYMBOL(netif_receive_skb_internal);
 
 /**
  *	netif_receive_skb - process receive buffer from network
