@@ -3898,6 +3898,20 @@ out:
 	return netif_receive_skb_internal(skb);
 }
 
+static void dev_gro_complete(struct sk_buff *skb) {
+
+	struct sk_buff_head *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
+	struct sk_buff *p = ofo_queue->next, *p2;
+
+	while (p != NULL) {
+		p2 = NAPI_GRO_CB(p)->next;
+		napi_gro_complete(p);
+		p = p2;
+	}
+
+	kfree(ofo_queue);
+}
+
 /* napi->gro_list contains packets ordered by age.
  * youngest packets at the head of it.
  * Complete skbs in reverse order to reduce latencies.
@@ -3992,20 +4006,6 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 		memmove(pinfo->frags, pinfo->frags + 1,
 			--pinfo->nr_frags * sizeof(pinfo->frags[0]));
 	}
-}
-
-static void dev_gro_complete(struct sk_buff *skb) {
-
-	struct sk_buff_head *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
-	struct sk_buff *p = ofo_queue->next, *p2;
-
-	while (p != NULL) {
-		p2 = NAPI_GRO_CB(p)->next;
-		napi_gro_complete(p);
-		p = p2;
-	}
-
-	kfree(ofo_queue);
 }
 
 static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
