@@ -3785,7 +3785,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	return ret;
 }
 
-static int netif_receive_skb_internal(struct sk_buff *skb)
+int netif_receive_skb_internal(struct sk_buff *skb)
 {
 	net_timestamp_check(netdev_tstamp_prequeue, skb);
 
