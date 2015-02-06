@@ -3115,7 +3115,7 @@ void skb_gro_flush(struct sk_buff_head *ofo_queue, struct sk_buff *skb) {
 	}
 }
 
-void skb_gro_free(struct sk_buff *skb) {}
+void skb_gro_free(struct sk_buff *skb) {
 	if (NAPI_GRO_CB(skb)->free == NAPI_GRO_FREE_STOLEN_HEAD)
 		kmem_cache_free(skbuff_head_cache, skb);
 	else
