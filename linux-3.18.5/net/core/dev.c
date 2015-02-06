@@ -3918,7 +3918,7 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 			return;
 
 		prev = skb->prev;
-		napi_gro_complete(skb);
+		dev_gro_complete(skb);
 		napi->gro_count--;
 	}
 
@@ -3993,6 +3993,20 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 	}
 }
 
+static void dev_gro_complete(struct sk_buff *skb) {
+
+	struct sk_buff_head *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
+	struct sk_buff *p = ofo_queue->next, *p2;
+
+	while (p != NULL) {
+		p2 = NAPI_GRO_CB(p)->next;
+		napi_gro_complete(p);
+		p = p2;
+	}
+
+	kfree(ofo_queue);
+}
+
 static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
@@ -4055,7 +4069,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 		*pp = nskb->next;
 		nskb->next = NULL;
-		napi_gro_complete(nskb);
+		dev_gro_complete(nskb);
 		napi->gro_count--;
 	}
 
@@ -4075,13 +4089,19 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		}
 		*pp = NULL;
 		nskb->next = NULL;
-		napi_gro_complete(nskb);
+		dev_gro_complete(nskb);
 	} else {
 		napi->gro_count++;
 	}
 	NAPI_GRO_CB(skb)->count = 1;
 	NAPI_GRO_CB(skb)->age = jiffies;
-	NAPI_GRO_CB(skb)->last = skb;
+	//NAPI_GRO_CB(skb)->last = skb;
+	NAPI_GRO_CB(skb)->out_of_order_queue = (struct sk_buff_head*)kmalloc(sizeof(struct sk_buff_head), GFP_ATOMIC);
+	NAPI_GRO_CB(skb)->out_of_order_queue->next = skb;
+	NAPI_GRO_CB(skb)->out_of_order_queue->prev = skb;
+	NAPI_GRO_CB(skb)->out_of_order_queue->qlen = skb_gro_len(skb);
+	NAPI_GRO_CB(skb)->prev = NULL;
+	NAPI_GRO_CB(skb)->next = NULL;
 	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
 	skb->next = napi->gro_list;
 	napi->gro_list = skb;

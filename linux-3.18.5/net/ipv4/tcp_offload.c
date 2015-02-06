@@ -178,17 +178,24 @@ out:
 struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
-	struct sk_buff *p;
+	struct sk_buff *p, *p2, *p3, *p4;
 	struct tcphdr *th;
 	struct tcphdr *th2;
+	unsigned int seq;
+	unsigned int seq2;
 	unsigned int len;
+	unsigned int len2;
+	unsigned int seq_next;
+	unsigned int seq_next2;
 	unsigned int thlen;
 	__be32 flags;
 	unsigned int mss = 1;
 	unsigned int hlen;
 	unsigned int off;
+	int merged = 0;
 	int flush = 1;
 	int i;
+	struct sk_buff_head *ofo_queue;
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*th);
@@ -212,8 +219,14 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 	skb_gro_pull(skb, thlen);
 
+	seq = ntohl(th->seq);
 	len = skb_gro_len(skb);
+	seq_next = seq + len;
 	flags = tcp_flag_word(th);
+
+	NAPI_GRO_CB(skb)->count = 1;
+	NAPI_GRO_CB(skb)->seq = seq;
+	NAPI_GRO_CB(skb)->len = len;
 
 	for (; (p = *head); head = &p->next) {
 		if (!NAPI_GRO_CB(p)->same_flow)
@@ -245,16 +258,172 @@ found:
 	mss = tcp_skb_mss(p);
 
 	flush |= (len - 1) >= mss;
-	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
+	/* allow out of order packets to be merged latter */
+	//flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
 
+	/*
 	if (flush || skb_gro_receive(head, skb)) {
 		mss = 1;
 		goto out_check_final;
+	}*/
+
+	ofo_queue = NAPI_GRO_CB(p)->out_of_order_queue;
+
+	if (flush || len + ofo_queue->qlen >= 65536 * 4) {
+		NAPI_GRO_CB(skb)->flush = 1;
+		return head;
 	}
 
-	p = *head;
-	th2 = tcp_hdr(p);
-	tcp_flag_word(th2) |= flags & (TCP_FLAG_FIN | TCP_FLAG_PSH);
+	// need to make sure the one in gro_list is always the head of the ofo_queue
+
+	NAPI_GRO_CB(skb)->age = NAPI_GRO_CB(p)->age;
+
+	for (p2 = NAPI_GRO_CB(p)->out_of_order_queue->next; p2 != NULL; p2 = NAPI_GRO_CB(p2)->next) {
+		seq2 = NAPI_GRO_CB(p2)->seq;
+		len2 = NAPI_GRO_CB(p2)->len;
+		seq_next2 = seq2 + len2;
+
+		if (seq_next < seq2) {
+
+			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+			NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
+			NAPI_GRO_CB(skb)->next = p2;
+			ofo_queue->qlen += len;
+			if (NAPI_GRO_CB(p2)->prev == NULL) {
+				ofo_queue->next = skb;
+				NAPI_GRO_CB(p2)->prev = skb;
+
+				*head = skb;
+				skb->next = p->next;
+			} else {
+				NAPI_GRO_CB(NAPI_GRO_CB(p2)->prev)->next = skb;
+				NAPI_GRO_CB(p2)->prev = skb;
+			}
+
+			merged = 1;
+			NAPI_GRO_CB(skb)->same_flow = 1;
+			break;
+
+		} else if (seq_next == seq2) {
+
+			if (skb_gro_merge(skb, p2)) {
+				p3 = NAPI_GRO_CB(p2)->next;
+				if (p3 != NULL) {
+					*head = p3;
+					p3->next = p->next;
+					skb_gro_flush(ofo_queue, p2);
+					NAPI_GRO_CB(skb)->flush = 1;
+					return NULL;
+				} else {
+					NAPI_GRO_CB(skb)->flush = 1;
+					return head;
+				}
+			}
+
+			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+			NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
+			NAPI_GRO_CB(skb)->next = NAPI_GRO_CB(p2)->next;
+			ofo_queue->qlen += len;
+
+			if (NAPI_GRO_CB(p2)->prev == NULL) {
+				ofo_queue->next = skb;
+
+				*head = skb;
+				skb->next = p->next;
+			} else {
+				NAPI_GRO_CB(NAPI_GRO_CB(p2)->prev)->next = skb;
+			}
+
+			if (NAPI_GRO_CB(p2)->next == NULL) {
+				ofo_queue->prev = skb;
+			} else {
+				NAPI_GRO_CB(NAPI_GRO_CB(p2)->next)->prev = skb;
+			}
+
+			skb_gro_free(p2);
+
+			merged = 1;
+			NAPI_GRO_CB(skb)->same_flow = 1;
+			break;
+
+		} else if (seq == seq_next2) {
+
+			if (skb_gro_merge(p2, skb)) {
+				p3 = NAPI_GRO_CB(p2)->next;
+				if (p3 != NULL) {
+					*head = p3;
+					p3->next = p->next;
+					skb_gro_flush(ofo_queue, p2);
+					NAPI_GRO_CB(skb)->flush = 1;
+					return NULL;
+				} else {
+					NAPI_GRO_CB(skb)->flush = 1;
+					return head;
+				}
+			}
+
+			th2 = tcp_hdr(p2);
+			tcp_flag_word(th2) |= flags & (TCP_FLAG_FIN | TCP_FLAG_PSH);
+
+			//skb_gro_free(skb);
+
+			ofo_queue->qlen += len;
+
+			p3 = NAPI_GRO_CB(p2)->next;
+			if (p3 != NULL && seq_next == NAPI_GRO_CB(p3)->seq) {
+
+				if (skb_gro_merge(p2, p3)) {
+					p4 = NAPI_GRO_CB(p3)->next;
+					if (p4 != NULL) {
+						*head = p4;
+						p4->next = p->next;
+						skb_gro_flush(ofo_queue, p3);
+						return NULL;
+					} else {
+						return head;
+					}
+				}
+
+				NAPI_GRO_CB(p2)->next = NAPI_GRO_CB(p3)->next;
+				
+				skb_gro_free(p3);
+
+				if (NAPI_GRO_CB(p2)->next == NULL) {
+					ofo_queue->prev = p2;
+				} else {
+					NAPI_GRO_CB(NAPI_GRO_CB(p2)->next)->prev = p2;
+				}
+
+			}
+
+			merged = 1;
+			break;
+
+		} else if (seq > seq_next2) {
+
+			if (NAPI_GRO_CB(p2)->next == NULL) {
+
+				NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+				NAPI_GRO_CB(skb)->prev = p2;
+				NAPI_GRO_CB(skb)->next = NULL;
+
+				ofo_queue->qlen += len;
+				ofo_queue->prev = skb;
+				NAPI_GRO_CB(p2)->next = skb;
+
+				merged = 1;
+				NAPI_GRO_CB(skb)->same_flow = 1;
+				break;
+
+			} else {
+				continue;
+			}
+
+		} else {
+			NAPI_GRO_CB(skb)->flush = 1;
+			return head;
+		}
+	}
 
 out_check_final:
 	flush = len < mss;
@@ -262,7 +431,7 @@ out_check_final:
 					TCP_FLAG_RST | TCP_FLAG_SYN |
 					TCP_FLAG_FIN));
 
-	if (p && (!NAPI_GRO_CB(skb)->same_flow || flush))
+	if (p && (!merged || flush))
 		pp = head;
 
 out:

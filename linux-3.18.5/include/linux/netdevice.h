@@ -1910,7 +1910,18 @@ struct napi_gro_cb {
 	__wsum	csum;
 
 	/* used in skb_gro_receive() slow path */
-	struct sk_buff *last;
+	//struct sk_buff *last;
+
+	/* out of order queue for tcp */
+	struct sk_buff_head *out_of_order_queue;
+
+	/* the prev/next skb in the out of order queue */
+	struct sk_buff *prev;
+	struct sk_buff *next;
+
+	/* seq and len of tcp data*/
+	uint32_t seq;
+	uint32_t len;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
@@ -2127,7 +2138,11 @@ struct net_device *__dev_get_by_index(struct net *net, int ifindex);
 struct net_device *dev_get_by_index_rcu(struct net *net, int ifindex);
 int netdev_get_name(struct net *net, char *name, int ifindex);
 int dev_restart(struct net_device *dev);
-int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb);
+//int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb);
+
+int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb);
+int skb_gro_free(struct sk_buff *skb);
+void skb_gro_flush(struct sk_buff_head *ofo_queue, struct sk_buff *skb);
 
 static inline unsigned int skb_gro_offset(const struct sk_buff *skb)
 {
