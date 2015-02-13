@@ -197,6 +197,9 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	int i;
 	struct sk_buff_head *ofo_queue;
 
+	printk(KERN_NOTICE "tcp0\n");
+	printk(KERN_NOTICE "%x\n", *head);
+
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*th);
 	th = skb_gro_header_fast(skb, off);
@@ -205,10 +208,12 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		if (unlikely(!th))
 			goto out;
 	}
+	printk(KERN_NOTICE "tcp1\n");
 
 	thlen = th->doff * 4;
 	if (thlen < sizeof(*th))
 		goto out;
+	printk(KERN_NOTICE "tcp2\n");
 
 	hlen = off + thlen;
 	if (skb_gro_header_hard(skb, hlen)) {
@@ -216,6 +221,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		if (unlikely(!th))
 			goto out;
 	}
+	printk(KERN_NOTICE "tcp3\n");
 
 	skb_gro_pull(skb, thlen);
 
@@ -233,6 +239,8 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 			continue;
 
 		th2 = tcp_hdr(p);
+		printk(KERN_NOTICE "%x\n", *(u32 *)&th->source);
+		printk(KERN_NOTICE "%x\n", *(u32 *)&th2->source);
 
 		if (*(u32 *)&th->source ^ *(u32 *)&th2->source) {
 			NAPI_GRO_CB(p)->same_flow = 0;
@@ -241,23 +249,34 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 		goto found;
 	}
+	printk(KERN_NOTICE "tcp4\n");
 
 	goto out_check_final;
 
 found:
+	printk(KERN_NOTICE "found0\n");
 	/* Include the IP ID check below from the inner most IP hdr */
-	flush = NAPI_GRO_CB(p)->flush; /*| NAPI_GRO_CB(p)->flush_id;*/
+	printk(KERN_NOTICE "flush-1 %u\n", flush);
+	printk(KERN_NOTICE "flush-2 %u\n", NAPI_GRO_CB(p)->flush);
+	printk(KERN_NOTICE "flush-3 %u\n", NAPI_GRO_CB(p)->flush_id);
+	flush = NAPI_GRO_CB(p)->flush; //| NAPI_GRO_CB(p)->flush_id;
+	printk(KERN_NOTICE "flush0 %u\n", flush);
 	flush |= (__force int)(flags & TCP_FLAG_CWR);
+	printk(KERN_NOTICE "flush1 %u\n", flush);
 	flush |= (__force int)((flags ^ tcp_flag_word(th2)) &
 		  ~(TCP_FLAG_CWR | TCP_FLAG_FIN | TCP_FLAG_PSH));
+	printk(KERN_NOTICE "flush2 %u\n", flush);
 	flush |= (__force int)(th->ack_seq ^ th2->ack_seq);
+	printk(KERN_NOTICE "flush3 %u\n", flush);
 	for (i = sizeof(*th); i < thlen; i += 4)
 		flush |= *(u32 *)((u8 *)th + i) ^
 			 *(u32 *)((u8 *)th2 + i);
+	printk(KERN_NOTICE "flush4 %u\n", flush);
 
 	mss = tcp_skb_mss(p);
 
 	flush |= (len - 1) >= mss;
+	printk(KERN_NOTICE "flush5 %u\n", flush);
 	/* allow out of order packets to be merged latter */
 	//flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
 
@@ -268,23 +287,32 @@ found:
 	}*/
 
 	ofo_queue = NAPI_GRO_CB(p)->out_of_order_queue;
+	printk(KERN_NOTICE "%u\n", flush);
+	printk(KERN_NOTICE "%u\n", ofo_queue->qlen);
 
 	if (flush || len + ofo_queue->qlen >= 65536 * 4) {
 		NAPI_GRO_CB(skb)->flush = 1;
 		return head;
 	}
+	printk(KERN_NOTICE "found1\n");
 
 	// need to make sure the one in gro_list is always the head of the ofo_queue
-
+	printk(KERN_NOTICE "enqueue\n");
 	NAPI_GRO_CB(skb)->age = NAPI_GRO_CB(p)->age;
 
 	for (p2 = NAPI_GRO_CB(p)->out_of_order_queue->next; p2 != NULL; p2 = NAPI_GRO_CB(p2)->next) {
 		seq2 = NAPI_GRO_CB(p2)->seq;
 		len2 = NAPI_GRO_CB(p2)->len;
 		seq_next2 = seq2 + len2;
+		
+		printk(KERN_NOTICE "seq %u\n", seq);
+		printk(KERN_NOTICE "seq_next %u\n", seq_next);
+		printk(KERN_NOTICE "seq2 %u\n", seq2);
+		printk(KERN_NOTICE "seq_next2 %u\n", seq_next2);
+
 
 		if (seq_next < seq2) {
-
+			printk(KERN_NOTICE "enqueue0\n");
 			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 			NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
 			NAPI_GRO_CB(skb)->next = p2;
@@ -305,6 +333,7 @@ found:
 			break;
 
 		} else if (seq_next == seq2) {
+			printk(KERN_NOTICE "enqueue1\n");
 
 			if (skb_gro_merge(skb, p2)) {
 				p3 = NAPI_GRO_CB(p2)->next;
@@ -347,8 +376,10 @@ found:
 			break;
 
 		} else if (seq == seq_next2) {
+			printk(KERN_NOTICE "enqueue2\n");
 
 			if (skb_gro_merge(p2, skb)) {
+				printk(KERN_NOTICE "merge fail\n");
 				p3 = NAPI_GRO_CB(p2)->next;
 				if (p3 != NULL) {
 					*head = p3;
@@ -371,8 +402,9 @@ found:
 
 			p3 = NAPI_GRO_CB(p2)->next;
 			if (p3 != NULL && seq_next == NAPI_GRO_CB(p3)->seq) {
-
+				printk(KERN_NOTICE "merge p3\n");
 				if (skb_gro_merge(p2, p3)) {
+					printk(KERN_NOTICE "merge fail\n");
 					p4 = NAPI_GRO_CB(p3)->next;
 					if (p4 != NULL) {
 						*head = p4;
@@ -400,6 +432,7 @@ found:
 			break;
 
 		} else if (seq > seq_next2) {
+			printk(KERN_NOTICE "enqueue3\n");
 
 			if (NAPI_GRO_CB(p2)->next == NULL) {
 
@@ -420,12 +453,15 @@ found:
 			}
 
 		} else {
+			printk(KERN_NOTICE "enqueue4\n");
 			NAPI_GRO_CB(skb)->flush = 1;
 			return head;
 		}
 	}
 
 out_check_final:
+	printk(KERN_NOTICE "%u\n", len);
+	printk(KERN_NOTICE "%u\n", mss);
 	flush = len < mss;
 	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
 					TCP_FLAG_RST | TCP_FLAG_SYN |
@@ -435,7 +471,10 @@ out_check_final:
 		pp = head;
 
 out:
+	printk(KERN_NOTICE "%x\n", NAPI_GRO_CB(skb)->flush);
 	NAPI_GRO_CB(skb)->flush |= (flush != 0);
+	printk(KERN_NOTICE "%x\n", NAPI_GRO_CB(skb)->flush);
+	printk(KERN_NOTICE "%x\n", pp);
 
 	return pp;
 }
