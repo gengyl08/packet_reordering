@@ -1913,7 +1913,7 @@ struct napi_gro_cb {
 	//struct sk_buff *last;
 
 	/* out of order queue for tcp */
-	struct sk_buff_head *out_of_order_queue;
+	struct sk_buff_head_gro *out_of_order_queue;
 
 	/* the prev/next skb in the out of order queue */
 	struct sk_buff *prev;
