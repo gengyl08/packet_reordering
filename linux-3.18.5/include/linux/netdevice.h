@@ -1922,6 +1922,9 @@ struct napi_gro_cb {
 	/* seq and len of tcp data*/
 	uint32_t seq;
 	uint32_t len;
+
+	/* if this skb is a TCP packet */
+	bool is_tcp;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)

@@ -174,6 +174,16 @@ struct sk_buff_head {
 	spinlock_t	lock;
 };
 
+struct sk_buff_head_gro {
+	/* These two members must be first. */
+	struct sk_buff	*next;
+	struct sk_buff	*prev;
+
+	__u32		qlen;
+	__u32		skb_num;
+	bool		is_tcp;
+};
+
 struct sk_buff;
 
 /* To allow 64K frame to be packed as single skb without frag_list we

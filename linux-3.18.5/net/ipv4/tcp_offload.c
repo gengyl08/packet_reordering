@@ -195,7 +195,9 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	int merged = 0;
 	int flush = 1;
 	int i;
-	struct sk_buff_head *ofo_queue;
+	struct sk_buff_head_gro *ofo_queue;
+
+	NAPI_GRO_CB(skb)->is_tcp = true;
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*th);
@@ -289,6 +291,7 @@ found:
 			NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
 			NAPI_GRO_CB(skb)->next = p2;
 			ofo_queue->qlen += len;
+			ofo_queue->skb_num++;
 			if (NAPI_GRO_CB(p2)->prev == NULL) {
 				ofo_queue->next = skb;
 				NAPI_GRO_CB(p2)->prev = skb;
@@ -384,6 +387,8 @@ found:
 					}
 				}
 
+				ofo_queue->skb_num--;
+
 				NAPI_GRO_CB(p2)->next = NAPI_GRO_CB(p3)->next;
 				
 				skb_gro_free(p3);
@@ -408,6 +413,7 @@ found:
 				NAPI_GRO_CB(skb)->next = NULL;
 
 				ofo_queue->qlen += len;
+				ofo_queue->skb_num++;
 				ofo_queue->prev = skb;
 				NAPI_GRO_CB(p2)->next = skb;
 

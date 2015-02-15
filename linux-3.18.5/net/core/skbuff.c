@@ -3096,12 +3096,13 @@ err:
 }
 EXPORT_SYMBOL_GPL(skb_segment);
 
-void skb_gro_flush(struct sk_buff_head *ofo_queue, struct sk_buff *skb) {
+void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb) {
 
 	struct sk_buff *p = ofo_queue->next;
 
 	while (p != NULL) {
 		ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
+		ofo_queue->skb_num--;
 		ofo_queue->next = NAPI_GRO_CB(p)->next;
 		netif_receive_skb_internal(p);
 		if (p != skb)

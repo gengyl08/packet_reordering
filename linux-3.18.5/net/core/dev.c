@@ -3900,7 +3900,7 @@ out:
 
 static void dev_gro_complete(struct sk_buff *skb) {
 
-	struct sk_buff_head *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
+	struct sk_buff_head_gro *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
 	struct sk_buff *p = ofo_queue->next, *p2;
 
 	while (p != NULL) {
@@ -4037,6 +4037,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		NAPI_GRO_CB(skb)->flush = 0;
 		NAPI_GRO_CB(skb)->free = 0;
 		NAPI_GRO_CB(skb)->udp_mark = 0;
+		NAPI_GRO_CB(skb)->is_tcp = false;
 
 		/* Setup for GRO checksum validation */
 		switch (skb->ip_summed) {
@@ -4097,10 +4098,12 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	NAPI_GRO_CB(skb)->count = 1;
 	NAPI_GRO_CB(skb)->age = jiffies;
 	//NAPI_GRO_CB(skb)->last = skb;
-	NAPI_GRO_CB(skb)->out_of_order_queue = (struct sk_buff_head*)kmalloc(sizeof(struct sk_buff_head), GFP_ATOMIC);
+	NAPI_GRO_CB(skb)->out_of_order_queue = (struct sk_buff_head_gro*)kmalloc(sizeof(struct sk_buff_head_gro), GFP_ATOMIC);
 	NAPI_GRO_CB(skb)->out_of_order_queue->next = skb;
 	NAPI_GRO_CB(skb)->out_of_order_queue->prev = skb;
 	NAPI_GRO_CB(skb)->out_of_order_queue->qlen = skb_gro_len(skb);
+	NAPI_GRO_CB(skb)->out_of_order_queue->skb_num = 1;
+	NAPI_GRO_CB(skb)->out_of_order_queue->is_tcp = NAPI_GRO_CB(skb)->is_tcp;
 	NAPI_GRO_CB(skb)->prev = NULL;
 	NAPI_GRO_CB(skb)->next = NULL;
 	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
