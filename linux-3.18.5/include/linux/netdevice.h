@@ -2145,7 +2145,7 @@ int dev_restart(struct net_device *dev);
 
 int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb);
 void skb_gro_free(struct sk_buff *skb);
-void skb_gro_flush(struct sk_buff_head *ofo_queue, struct sk_buff *skb);
+void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb);
 
 static inline unsigned int skb_gro_offset(const struct sk_buff *skb)
 {
