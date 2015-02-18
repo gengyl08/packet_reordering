@@ -3918,7 +3918,7 @@ static void dev_gro_complete(struct sk_buff *skb) {
  */
 void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 {
-	struct sk_buff *skb, *prev = NULL;
+	struct sk_buff *skb, *prev = NULL, *gro_list_old = napi->gro_list;
 
 	/* scan list and build reverse chain */
 	for (skb = napi->gro_list; skb != NULL; skb = skb->next) {
@@ -3927,17 +3927,35 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 	}
 
 	for (skb = prev; skb; skb = prev) {
-		skb->next = NULL;
+		//skb->next = NULL;
 
-		if (flush_old && NAPI_GRO_CB(skb)->age == jiffies)
+		if (flush_old && NAPI_GRO_CB(skb)->age == jiffies) {
+			napi->gro_list = gro_list_old;
 			return;
+		}
 
 		prev = skb->prev;
-		dev_gro_complete(skb);
-		napi->gro_count--;
+
+		if (!skb->out_of_order_queue->is_tcp) {
+
+			if (prev != NULL) {
+				prev->next = skb->next;
+			}
+
+			skb->prev = NULL;
+			skb->next = NULL;
+			dev_gro_complete(skb);
+			napi->gro_count--;
+		} else {
+			napi->gro_list = skb;
+		}
+
+		//prev = skb->prev;
+		//dev_gro_complete(skb);
+		//napi->gro_count--;
 	}
 
-	napi->gro_list = NULL;
+	//napi->gro_list = NULL;
 }
 EXPORT_SYMBOL(napi_gro_flush);
 
