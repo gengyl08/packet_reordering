@@ -3936,7 +3936,7 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 
 		prev = skb->prev;
 
-		if (!skb->out_of_order_queue->is_tcp) {
+		if (!NAPI_GRO_CB(skb)->out_of_order_queue->is_tcp) {
 
 			if (prev != NULL) {
 				prev->next = skb->next;
