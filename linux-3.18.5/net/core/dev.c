@@ -3898,7 +3898,7 @@ out:
 	return netif_receive_skb_internal(skb);
 }
 
-static sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeout) {
+static struct sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeout) {
 
 	struct sk_buff_head_gro *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
 	struct sk_buff *p = ofo_queue->next, *p2, *pl = ofo_queue->prev, *skb_last = NULL;
