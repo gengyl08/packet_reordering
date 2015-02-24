@@ -3898,18 +3898,37 @@ out:
 	return netif_receive_skb_internal(skb);
 }
 
-static void dev_gro_complete(struct sk_buff *skb) {
+static sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeout) {
 
 	struct sk_buff_head_gro *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
-	struct sk_buff *p = ofo_queue->next, *p2;
+	struct sk_buff *p = ofo_queue->next, *p2, *pl = ofo_queue->prev, *skb_last = NULL;
 
-	while (p != NULL) {
+	if (timeout != 0) {
+		while (pl != NULL) {
+			if (NAPI_GRO_CB(pl)->age - jiffies < timeout) {
+				skb_last = pl;
+				pl = NAPI_GRO_CB(pl)->prev;
+			} else {
+				break;
+			}
+		}
+	}
+
+	while (p != skb_last) {
 		p2 = NAPI_GRO_CB(p)->next;
+		ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
+		ofo_queue->skb_num--;
 		napi_gro_complete(p);
 		p = p2;
 	}
 
-	kfree(ofo_queue);
+	if (skb_last == NULL) {
+		kfree(ofo_queue);
+	} else {
+		ofo_queue->next = skb_last;
+	}
+
+	return skb_last;
 }
 
 /* napi->gro_list contains packets ordered by age.
@@ -3918,7 +3937,7 @@ static void dev_gro_complete(struct sk_buff *skb) {
  */
 void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 {
-	struct sk_buff *skb, *prev = NULL, *gro_list_old = napi->gro_list;
+	struct sk_buff *skb, *prev = NULL, *gro_list_old = napi->gro_list, *p, *skb_new;
 
 	/* scan list and build reverse chain */
 	for (skb = napi->gro_list; skb != NULL; skb = skb->next) {
@@ -3946,10 +3965,22 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 
 			skb->prev = NULL;
 			skb->next = NULL;
-			dev_gro_complete(skb);
+			dev_gro_complete(skb, 0);
 			napi->gro_count--;
 		} else {
-			napi->gro_list = skb;
+			p = skb->next;
+			skb_new = dev_gro_complete(skb, HZ * 0.1)
+			if (!skb_new) {
+				if (prev != NULL) {
+					prev->next = p;
+				}
+
+				napi->gro_count--;
+			} else {
+				prev->next = skb_new;
+				skb_new->next = p;
+				napi->gro_list = skb_new;
+			}
 		}
 
 		//prev = skb->prev;
@@ -4091,7 +4122,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 		*pp = nskb->next;
 		nskb->next = NULL;
-		dev_gro_complete(nskb);
+		dev_gro_complete(nskb, 0);
 		napi->gro_count--;
 	}
 
@@ -4111,7 +4142,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		}
 		*pp = NULL;
 		nskb->next = NULL;
-		dev_gro_complete(nskb);
+		dev_gro_complete(nskb, 0);
 	} else {
 		napi->gro_count++;
 	}
@@ -4124,6 +4155,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	NAPI_GRO_CB(skb)->out_of_order_queue->qlen = skb_gro_len(skb);
 	NAPI_GRO_CB(skb)->out_of_order_queue->skb_num = 1;
 	NAPI_GRO_CB(skb)->out_of_order_queue->is_tcp = NAPI_GRO_CB(skb)->is_tcp;
+	NAPI_GRO_CB(skb)->out_of_order_queue->seq_next = NAPI_GRO_CB(skb)->seq + NAPI_GRO_CB(skb)->len;
 	NAPI_GRO_CB(skb)->prev = NULL;
 	NAPI_GRO_CB(skb)->next = NULL;
 	skb_shinfo(skb)->gso_size = skb_gro_len(skb);

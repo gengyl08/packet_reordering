@@ -300,8 +300,7 @@ found:
 
 	// need to make sure the one in gro_list is always the head of the ofo_queue
 	//printk(KERN_NOTICE "enqueue\n");
-	NAPI_GRO_CB(skb)->age = NAPI_GRO_CB(p)->age;
-
+	NAPI_GRO_CB(skb)->age = jiffies;
 	for (p2 = NAPI_GRO_CB(p)->out_of_order_queue->next; p2 != NULL; p2 = NAPI_GRO_CB(p2)->next) {
 		seq2 = NAPI_GRO_CB(p2)->seq;
 		len2 = NAPI_GRO_CB(p2)->len;
@@ -355,6 +354,7 @@ found:
 			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 			NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
 			NAPI_GRO_CB(skb)->next = NAPI_GRO_CB(p2)->next;
+			NAPI_GRO_CB(skb)->age = NAPI_GRO_CB(p2)->age;
 			ofo_queue->qlen += len;
 
 			if (NAPI_GRO_CB(p2)->prev == NULL) {
@@ -422,6 +422,7 @@ found:
 				ofo_queue->skb_num--;
 
 				NAPI_GRO_CB(p2)->next = NAPI_GRO_CB(p3)->next;
+				NAPI_GRO_CB(p2)->age = min(NAPI_GRO_CB(p2)->age, NAPI_GRO_CB(p3)->age);
 				
 				skb_gro_free(p3);
 
