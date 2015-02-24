@@ -182,6 +182,7 @@ struct sk_buff_head_gro {
 	__u32		qlen;
 	__u32		skb_num;
 	bool		is_tcp;
+	uint32_t	seq_next;
 };
 
 struct sk_buff;
