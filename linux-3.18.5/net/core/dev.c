@@ -3977,7 +3977,9 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 
 				napi->gro_count--;
 			} else {
-				prev->next = skb_new;
+				if (prev != NULL) {
+					prev->next = skb_new;
+				}
 				skb_new->next = p;
 				napi->gro_list = skb_new;
 			}
@@ -4155,7 +4157,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	NAPI_GRO_CB(skb)->out_of_order_queue->qlen = skb_gro_len(skb);
 	NAPI_GRO_CB(skb)->out_of_order_queue->skb_num = 1;
 	NAPI_GRO_CB(skb)->out_of_order_queue->is_tcp = NAPI_GRO_CB(skb)->is_tcp;
-	NAPI_GRO_CB(skb)->out_of_order_queue->seq_next = NAPI_GRO_CB(skb)->seq + NAPI_GRO_CB(skb)->len;
+	//NAPI_GRO_CB(skb)->out_of_order_queue->seq_next = NAPI_GRO_CB(skb)->seq + NAPI_GRO_CB(skb)->len;
 	NAPI_GRO_CB(skb)->prev = NULL;
 	NAPI_GRO_CB(skb)->next = NULL;
 	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
