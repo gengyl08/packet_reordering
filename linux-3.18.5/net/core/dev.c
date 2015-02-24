@@ -3969,7 +3969,7 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 			napi->gro_count--;
 		} else {
 			p = skb->next;
-			skb_new = dev_gro_complete(skb, HZ * 0.1)
+			skb_new = dev_gro_complete(skb, HZ * 0.1);
 			if (!skb_new) {
 				if (prev != NULL) {
 					prev->next = p;
