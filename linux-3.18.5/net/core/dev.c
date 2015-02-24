@@ -3926,6 +3926,8 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 		prev = skb;
 	}
 
+	napi->gro_list = NULL;
+
 	for (skb = prev; skb; skb = prev) {
 		//skb->next = NULL;
 
