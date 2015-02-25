@@ -4561,13 +4561,29 @@ EXPORT_SYMBOL_GPL(napi_hash_del);
 static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 {
 	struct napi_struct *napi;
+	struct sk_buff *skb, *prev = NULL;
 	void *have;
 
 	napi = container_of(timer, struct napi_struct, timer);
 
 	have = netpoll_poll_lock(napi);
 
-	printk(KERN_NOTICE "napi_flush_watchdog\n");
+	for (skb = napi->gro_list; skb != NULL;skb = skb->next) {
+		skb->prev = prev;
+		prev = skb;
+	}
+
+	for (skb = prev; skb; skb = prev) {
+		prev = skb->prev;
+		skb->prev = NULL;
+		skb->next = NULL;
+		dev_gro_complete(skb, 0);
+	}
+
+	napi->gro_count = 0;
+	napi->gro_list = NULL;
+
+	printk(KERN_NOTICE "napi_flush_timer\n");
 
 	netpoll_poll_unlock(have);
 

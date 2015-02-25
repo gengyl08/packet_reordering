@@ -292,7 +292,7 @@ found:
 	//printk(KERN_NOTICE "%u\n", flush);
 	//printk(KERN_NOTICE "%u\n", ofo_queue->qlen);
 
-	if (flush || len + ofo_queue->qlen >= 6000) {
+	if (flush || len + ofo_queue->qlen >= 65536 * 4) {
 		NAPI_GRO_CB(skb)->flush = 1;
 		return head;
 	}
