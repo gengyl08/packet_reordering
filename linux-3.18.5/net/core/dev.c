@@ -4566,7 +4566,7 @@ static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 
 	napi = container_of(timer, struct napi_struct, timer);
 
-	have = netpoll_poll_lock(napi);
+	spin_lock(&napi->gro_lock);
 
 	for (skb = napi->gro_list; skb != NULL;skb = skb->next) {
 		skb->prev = prev;
@@ -4585,7 +4585,7 @@ static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 
 	printk(KERN_NOTICE "napi_flush_timer\n");
 
-	netpoll_poll_unlock(have);
+	spin_unlock(&napi->gro_lock);
 
 	return HRTIMER_NORESTART;
 }
@@ -4597,6 +4597,7 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 
 	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	napi->timer.function = napi_flush_watchdog;
+	spin_lock_init(&napi->gro_lock);
 
 	napi->gro_count = 0;
 	napi->gro_list = NULL;
@@ -4660,6 +4661,7 @@ static void net_rx_action(struct softirq_action *h)
 		n = list_first_entry(&sd->poll_list, struct napi_struct, poll_list);
 
 		have = netpoll_poll_lock(n);
+		spin_lock(&n->gro_lock);
 
 		weight = n->weight;
 
@@ -4704,6 +4706,7 @@ static void net_rx_action(struct softirq_action *h)
 			}
 		}
 
+		spin_unlock(&n->gro_lock);
 		netpoll_poll_unlock(have);
 	}
 out:

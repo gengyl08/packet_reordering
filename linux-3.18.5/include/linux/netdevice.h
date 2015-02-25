@@ -315,6 +315,7 @@ struct napi_struct {
 	struct sk_buff		*gro_list;
 	struct sk_buff		*skb;
 	struct hrtimer		timer;
+	spinlock_t 			gro_lock;
 	struct list_head	dev_list;
 	struct hlist_node	napi_hash_node;
 	unsigned int		napi_id;
