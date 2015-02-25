@@ -4565,7 +4565,7 @@ static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 
 	napi = container_of(timer, struct napi_struct, timer);
 
-	have = netpoll_poll_lock(n);
+	have = netpoll_poll_lock(napi);
 
 	printk(KERN_NOTICE "napi_flush_watchdog\n");
 
