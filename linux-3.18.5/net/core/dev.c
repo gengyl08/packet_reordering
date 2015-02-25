@@ -3905,7 +3905,7 @@ static struct sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeo
 
 	if (timeout != 0) {
 		while (pl != NULL) {
-			if (NAPI_GRO_CB(pl)->age - jiffies < timeout) {
+			if (jiffies - NAPI_GRO_CB(pl)->age <= timeout) {
 				skb_last = pl;
 				pl = NAPI_GRO_CB(pl)->prev;
 			} else {
@@ -3938,6 +3938,8 @@ static struct sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeo
 void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 {
 	struct sk_buff *skb, *prev = NULL, *gro_list_old = napi->gro_list, *p, *skb_new;
+
+	hrtimer_start(&napi->timer, ktime_set(0, 1E6), HRTIMER_MODE_REL);
 
 	/* scan list and build reverse chain */
 	for (skb = napi->gro_list; skb != NULL; skb = skb->next) {
@@ -4556,10 +4558,30 @@ void napi_hash_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL_GPL(napi_hash_del);
 
+static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
+{
+	struct napi_struct *napi;
+	void *have;
+
+	napi = container_of(timer, struct napi_struct, timer);
+
+	have = netpoll_poll_lock(n);
+
+	printk(KERN_NOTICE "napi_flush_watchdog\n");
+
+	netpoll_poll_unlock(have);
+
+	return HRTIMER_NORESTART;
+}
+
 void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		    int (*poll)(struct napi_struct *, int), int weight)
 {
 	INIT_LIST_HEAD(&napi->poll_list);
+
+	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	napi->timer.function = napi_flush_watchdog;
+
 	napi->gro_count = 0;
 	napi->gro_list = NULL;
 	napi->skb = NULL;
@@ -4581,6 +4603,9 @@ EXPORT_SYMBOL(netif_napi_add);
 void netif_napi_del(struct napi_struct *napi)
 {
 	list_del_init(&napi->dev_list);
+
+	hrtimer_cancel(&napi->timer);
+
 	napi_free_frags(napi);
 
 	kfree_skb_list(napi->gro_list);
