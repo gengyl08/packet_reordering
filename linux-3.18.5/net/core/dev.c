@@ -4562,11 +4562,13 @@ static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 {
 	struct napi_struct *napi;
 	struct sk_buff *skb, *prev = NULL;
-	void *have;
+	unsigned long flags;
 
 	napi = container_of(timer, struct napi_struct, timer);
 
-	spin_lock(&napi->gro_lock);
+	printk(KERN_NOTICE "before lock 1\n");
+	spin_lock_irqsave(&napi->gro_lock, flags);
+	printk(KERN_NOTICE "after lock 1\n");
 
 	for (skb = napi->gro_list; skb != NULL;skb = skb->next) {
 		skb->prev = prev;
@@ -4585,7 +4587,9 @@ static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 
 	printk(KERN_NOTICE "napi_flush_timer\n");
 
-	spin_unlock(&napi->gro_lock);
+	printk(KERN_NOTICE "before unlock 1\n");
+	spin_unlock_irqrestore(&napi->gro_lock, flags);
+	printk(KERN_NOTICE "after unlock 1\n");
 
 	return HRTIMER_NORESTART;
 }
@@ -4637,6 +4641,7 @@ static void net_rx_action(struct softirq_action *h)
 	unsigned long time_limit = jiffies + 2;
 	int budget = netdev_budget;
 	void *have;
+	unsigned long flags;
 
 	local_irq_disable();
 
@@ -4661,7 +4666,10 @@ static void net_rx_action(struct softirq_action *h)
 		n = list_first_entry(&sd->poll_list, struct napi_struct, poll_list);
 
 		have = netpoll_poll_lock(n);
-		spin_lock(&n->gro_lock);
+
+		printk(KERN_NOTICE "before lock 2\n");
+		spin_lock_irqsave(&n->gro_lock, flags);
+		printk(KERN_NOTICE "after lock 2\n");
 
 		weight = n->weight;
 
@@ -4681,6 +4689,10 @@ static void net_rx_action(struct softirq_action *h)
 
 		budget -= work;
 
+		printk(KERN_NOTICE "before unlock 2\n");
+		spin_unlock_irqrestore(&n->gro_lock, flags);
+		printk(KERN_NOTICE "after unlock 2\n");
+
 		local_irq_disable();
 
 		/* Drivers must not modify the NAPI state if they
@@ -4691,7 +4703,17 @@ static void net_rx_action(struct softirq_action *h)
 		if (unlikely(work == weight)) {
 			if (unlikely(napi_disable_pending(n))) {
 				local_irq_enable();
+
+				printk(KERN_NOTICE "before lock 3\n");
+				spin_lock_irqsave(&n->gro_lock, flags);
+				printk(KERN_NOTICE "after lock 3\n");
+
 				napi_complete(n);
+
+				printk(KERN_NOTICE "before unlock 3\n");
+				spin_unlock_irqrestore(&n->gro_lock, flags);
+				printk(KERN_NOTICE "after unlock 3\n");
+
 				local_irq_disable();
 			} else {
 				if (n->gro_list) {
@@ -4699,14 +4721,23 @@ static void net_rx_action(struct softirq_action *h)
 					 * If HZ < 1000, flush all packets.
 					 */
 					local_irq_enable();
+
+					printk(KERN_NOTICE "before lock 4\n");
+					spin_lock_irqsave(&n->gro_lock, flags);
+					printk(KERN_NOTICE "after lock 4\n");
+
 					napi_gro_flush(n, HZ >= 1000);
+
+					printk(KERN_NOTICE "before unlock 4\n");
+					spin_unlock_irqrestore(&n->gro_lock, flags);
+					printk(KERN_NOTICE "after unlock 4\n");
+
 					local_irq_disable();
 				}
 				list_move_tail(&n->poll_list, &sd->poll_list);
 			}
 		}
 
-		spin_unlock(&n->gro_lock);
 		netpoll_poll_unlock(have);
 	}
 out:
