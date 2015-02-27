@@ -3902,6 +3902,7 @@ static struct sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeo
 
 	struct sk_buff_head_gro *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
 	struct sk_buff *p = ofo_queue->next, *p2, *pl = ofo_queue->prev, *skb_last = NULL;
+	unsigned qlen = 0, skb_num = 0;
 
 	if (timeout != 0) {
 		while (pl != NULL) {
@@ -3916,6 +3917,10 @@ static struct sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeo
 
 	while (p != skb_last) {
 		p2 = NAPI_GRO_CB(p)->next;
+
+		qlen += NAPI_GRO_CB(p)->len;
+		skb_num++;
+
 		ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
 		ofo_queue->skb_num--;
 		napi_gro_complete(p);
@@ -3928,6 +3933,10 @@ static struct sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeo
 		ofo_queue->next = skb_last;
 	}
 
+	if (timeout != 0) {
+		printk(KERN_NOTICE "napi_gro_flush qlen %u skb %u\n", qlen, skb_num);
+	}
+
 	return skb_last;
 }
 
@@ -3938,8 +3947,6 @@ static struct sk_buff* dev_gro_complete(struct sk_buff *skb, unsigned long timeo
 void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 {
 	struct sk_buff *skb, *prev = NULL, *gro_list_old = napi->gro_list, *p, *skb_new;
-
-	hrtimer_start(&napi->timer, ktime_set(0, 1E6), HRTIMER_MODE_REL);
 
 	/* scan list and build reverse chain */
 	for (skb = napi->gro_list; skb != NULL; skb = skb->next) {
@@ -3970,7 +3977,7 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 			dev_gro_complete(skb, 0);
 			napi->gro_count--;
 		} else {
-			printk(KERN_NOTICE "napi_gro_flush qlen %u skb %u\n", NAPI_GRO_CB(skb)->out_of_order_queue->qlen, NAPI_GRO_CB(skb)->out_of_order_queue->skb_num);
+			
 			p = skb->next;
 			skb_new = dev_gro_complete(skb, HZ * 0.1);
 			if (!skb_new) {
@@ -3991,6 +3998,10 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 		//prev = skb->prev;
 		//dev_gro_complete(skb);
 		//napi->gro_count--;
+	}
+
+	if (napi->gro_list) {
+		hrtimer_start(&napi->timer, ktime_set(0, 1E6), HRTIMER_MODE_REL);
 	}
 
 	//napi->gro_list = NULL;
