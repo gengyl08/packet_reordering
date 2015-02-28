@@ -4001,7 +4001,7 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 	}
 
 	if (napi->gro_list) {
-		hrtimer_start(&napi->timer, ktime_set(0, 1E6), HRTIMER_MODE_REL);
+		hrtimer_start(&napi->timer, ktime_set(0, 1E5), HRTIMER_MODE_REL);
 	}
 
 	//napi->gro_list = NULL;
