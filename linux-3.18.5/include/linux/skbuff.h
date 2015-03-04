@@ -176,13 +176,15 @@ struct sk_buff_head {
 
 struct sk_buff_head_gro {
 	/* These two members must be first. */
-	struct sk_buff	*next;
-	struct sk_buff	*prev;
+	struct sk_buff				*next;
+	struct sk_buff				*prev;
+	struct sk_buff_head_gro		*next_queue;
+	struct sk_buff_head_gro		*prev_queue;
 
-	__u32		qlen;
-	__u32		skb_num;
-	bool		is_tcp;
-	//uint32_t	seq_next;
+	__u32						hash;
+	__u32						qlen;
+	__u32						skb_num;
+	__u32						seq_next;
 };
 
 struct sk_buff;

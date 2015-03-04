@@ -313,6 +313,7 @@ struct napi_struct {
 #endif
 	struct net_device	*dev;
 	struct sk_buff		*gro_list;
+	struct sk_buff_head_gro	*out_of_order_queue_list;
 	struct sk_buff		*skb;
 	struct hrtimer		timer;
 	spinlock_t 			gro_lock;
@@ -1922,11 +1923,12 @@ struct napi_gro_cb {
 	struct sk_buff *next;
 
 	/* seq and len of tcp data*/
-	uint32_t seq;
-	uint32_t len;
+	__u32 seq;
+	__u32 len;
 
 	/* if this skb is a TCP packet */
 	bool is_tcp;
+	__u32 tcp_hash;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)

@@ -181,12 +181,12 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	struct sk_buff *p, *p2, *p3, *p4;
 	struct tcphdr *th;
 	struct tcphdr *th2;
-	unsigned int seq;
-	unsigned int seq2;
-	unsigned int len;
-	unsigned int len2;
-	unsigned int seq_next;
-	unsigned int seq_next2;
+	__u32 seq;
+	__u32 seq2;
+	__u32 len;
+	__u32 len2;
+	__u32 seq_next;
+	__u32 seq_next2;
 	unsigned int thlen;
 	__be32 flags;
 	unsigned int mss = 1;
@@ -235,6 +235,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	NAPI_GRO_CB(skb)->count = 1;
 	NAPI_GRO_CB(skb)->seq = seq;
 	NAPI_GRO_CB(skb)->len = len;
+	NAPI_GRO_CB(skb)->tcp_hash = *(__u32 *)&th->source;
 
 	for (; (p = *head); head = &p->next) {
 		if (!NAPI_GRO_CB(p)->same_flow)
@@ -312,7 +313,7 @@ found:
 		//printk(KERN_NOTICE "seq_next2 %u\n", seq_next2);
 
 
-		if (seq_next < seq2) {
+		if (before(seq_next, seq2)) {
 			//printk(KERN_NOTICE "enqueue0\n");
 			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 			NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
@@ -404,32 +405,39 @@ found:
 			ofo_queue->qlen += len;
 
 			p3 = NAPI_GRO_CB(p2)->next;
-			if (p3 != NULL && seq_next == NAPI_GRO_CB(p3)->seq) {
-				//printk(KERN_NOTICE "merge p3\n");
-				if (skb_gro_merge(p2, p3)) {
-					//printk(KERN_NOTICE "merge fail\n");
-					p4 = NAPI_GRO_CB(p3)->next;
-					if (p4 != NULL) {
-						*head = p4;
-						p4->next = p->next;
-						skb_gro_flush(ofo_queue, p3);
-						return NULL;
+			if (p3 != NULL) {
+
+				if (seq_next == NAPI_GRO_CB(p3)->seq) {
+
+					//printk(KERN_NOTICE "merge p3\n");
+					if (skb_gro_merge(p2, p3)) {
+						//printk(KERN_NOTICE "merge fail\n");
+						p4 = NAPI_GRO_CB(p3)->next;
+						if (p4 != NULL) {
+							*head = p4;
+							p4->next = p->next;
+							skb_gro_flush(ofo_queue, p3);
+							return NULL;
+						} else {
+							return head;
+						}
+					}	
+
+					ofo_queue->skb_num--;	
+
+					NAPI_GRO_CB(p2)->next = NAPI_GRO_CB(p3)->next;
+					NAPI_GRO_CB(p2)->age = min(NAPI_GRO_CB(p2)->age, NAPI_GRO_CB(p3)->age);
+					
+					skb_gro_free(p3);	
+
+					if (NAPI_GRO_CB(p2)->next == NULL) {
+						ofo_queue->prev = p2;
 					} else {
-						return head;
+						NAPI_GRO_CB(NAPI_GRO_CB(p2)->next)->prev = p2;
 					}
-				}
 
-				ofo_queue->skb_num--;
-
-				NAPI_GRO_CB(p2)->next = NAPI_GRO_CB(p3)->next;
-				NAPI_GRO_CB(p2)->age = min(NAPI_GRO_CB(p2)->age, NAPI_GRO_CB(p3)->age);
-				
-				skb_gro_free(p3);
-
-				if (NAPI_GRO_CB(p2)->next == NULL) {
-					ofo_queue->prev = p2;
-				} else {
-					NAPI_GRO_CB(NAPI_GRO_CB(p2)->next)->prev = p2;
+				} else if (after(seq_next, NAPI_GRO_CB(p3)->seq)) {
+					return head;
 				}
 
 			}
@@ -437,7 +445,7 @@ found:
 			merged = 1;
 			break;
 
-		} else if (seq > seq_next2) {
+		} else if (after(seq, seq_next2)) {
 			//printk(KERN_NOTICE "enqueue3\n");
 
 			if (NAPI_GRO_CB(p2)->next == NULL) {
