@@ -4103,7 +4103,7 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 	}
 }
 
-static sk_buff_head_gro* napi_get_tcp_ofo_queue(struct napi_struct *napi, struct sk_buff *skb) {
+static struct sk_buff_head_gro* napi_get_tcp_ofo_queue(struct napi_struct *napi, struct sk_buff *skb) {
 	struct sk_buff_head_gro *ofo_queue;
 
 	ofo_queue = napi->out_of_order_queue_list;
