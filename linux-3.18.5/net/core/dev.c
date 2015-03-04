@@ -4214,6 +4214,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		if (!ofo_queue) {
 			NAPI_GRO_CB(skb)->out_of_order_queue = (struct sk_buff_head_gro*)kmalloc(sizeof(struct sk_buff_head_gro), GFP_ATOMIC);
 		} else {
+			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 			if (ofo_queue->prev_queue) {
 				ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
 			} else {
