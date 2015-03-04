@@ -181,6 +181,7 @@ struct sk_buff_head_gro {
 	struct sk_buff_head_gro		*next_queue;
 	struct sk_buff_head_gro		*prev_queue;
 
+	unsigned long 				age;
 	__u32						hash;
 	__u32						qlen;
 	__u32						skb_num;
