@@ -4657,7 +4657,7 @@ static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 		skb->prev = NULL;
 		skb->next = NULL;
 		printk(KERN_NOTICE "napi_flush_watchdog qlen %u skb %u\n", NAPI_GRO_CB(skb)->out_of_order_queue->qlen, NAPI_GRO_CB(skb)->out_of_order_queue->skb_num);
-		dev_gro_complete(skb, 0);
+		dev_gro_complete(napi, skb, 0);
 	}
 
 	napi->gro_count = 0;
