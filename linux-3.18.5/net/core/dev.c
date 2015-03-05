@@ -4236,7 +4236,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 					ofo_queue->next_queue->prev_queue = ofo_queue->prev_queue;
 				}
 			} else {
-				printk(KERN_NOTICE "flush point 10: %u %u\n"NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next);
+				printk(KERN_NOTICE "flush point 10: %u %u\n", NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next);
 				goto normal;
 			}
 		}
