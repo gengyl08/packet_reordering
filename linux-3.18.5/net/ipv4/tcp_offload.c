@@ -296,12 +296,14 @@ found:
 	//printk(KERN_NOTICE "%u\n", ofo_queue->qlen);
 
 	if (flush || len + ofo_queue->qlen >= 65536 * 4) {
+		printk(KERN_NOTICE "flush point 1\n");
 		NAPI_GRO_CB(skb)->flush = 1;
 		return head;
 	}
 	//printk(KERN_NOTICE "found1\n");
 
 	if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
+		printk(KERN_NOTICE "flush point 2\n");
 		NAPI_GRO_CB(skb)->flush = 1;
 		return NULL;
 	}
@@ -346,6 +348,7 @@ found:
 			//printk(KERN_NOTICE "enqueue1\n");
 
 			if (skb_gro_merge(skb, p2)) {
+				printk(KERN_NOTICE "flush point 3\n");
 				p3 = NAPI_GRO_CB(p2)->next;
 				if (p3 != NULL) {
 					*head = p3;
@@ -391,6 +394,7 @@ found:
 
 			if (skb_gro_merge(p2, skb)) {
 				//printk(KERN_NOTICE "merge fail\n");
+				printk(KERN_NOTICE "flush point 4\n");
 				p3 = NAPI_GRO_CB(p2)->next;
 				if (p3 != NULL) {
 					*head = p3;
@@ -419,6 +423,7 @@ found:
 					//printk(KERN_NOTICE "merge p3\n");
 					if (skb_gro_merge(p2, p3)) {
 						//printk(KERN_NOTICE "merge fail\n");
+						printk(KERN_NOTICE "flush point 5\n");
 						p4 = NAPI_GRO_CB(p3)->next;
 						if (p4 != NULL) {
 							*head = p4;
@@ -426,6 +431,7 @@ found:
 							skb_gro_flush(ofo_queue, p3);
 							return NULL;
 						} else {
+							printk(KERN_NOTICE "flush point 6\n");
 							return head;
 						}
 					}	
@@ -444,6 +450,7 @@ found:
 					}
 
 				} else if (after(seq_next, NAPI_GRO_CB(p3)->seq)) {
+					printk(KERN_NOTICE "flush point 7\n");
 					return head;
 				}
 
@@ -476,6 +483,7 @@ found:
 
 		} else {
 			//printk(KERN_NOTICE "enqueue4\n");
+			printk(KERN_NOTICE "flush point 8\n");
 			NAPI_GRO_CB(skb)->flush = 1;
 			return head;
 		}
@@ -489,8 +497,10 @@ out_check_final:
 					TCP_FLAG_RST | TCP_FLAG_SYN |
 					TCP_FLAG_FIN));
 
-	if (p && (!merged || flush))
+	if (p && (!merged || flush)) {
+		printk(KERN_NOTICE "flush point 9\n");
 		pp = head;
+	}
 
 out:
 	//printk(KERN_NOTICE "%x\n", NAPI_GRO_CB(skb)->flush);
