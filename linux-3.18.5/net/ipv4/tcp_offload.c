@@ -286,7 +286,7 @@ found:
 
 	flush |= (len - 1) >= mss;
 	if (flush)
-	printk(KERN_NOTICE "flush5 %u\n", flush);
+	printk(KERN_NOTICE "flush5 %u %u\n", len, mss);
 	/* allow out of order packets to be merged latter */
 	//flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
 
