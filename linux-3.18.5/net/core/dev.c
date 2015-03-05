@@ -3934,22 +3934,36 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 		p = p2;
 	}
 
-	if (skb_last == NULL) {
+	while (p != NULL && ofo_queue->seq_next == NAPI_GRO_CB(p)->seq) {
+		p2 = NAPI_GRO_CB(p)->next;
+
+		qlen += NAPI_GRO_CB(p)->len;
+		skb_num++;
+
+		ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
+		ofo_queue->skb_num--;
+		ofo_queue->seq_next = max(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len);
+		napi_gro_complete(p);
+		p = p2;
+		printk(KERN_NOTICE "flush in sequence skb\n");
+	}
+
+	if (p == NULL) {
 		ofo_queue->age = jiffies;
 		ofo_queue->prev_queue = NULL;
 		ofo_queue->next_queue = napi->out_of_order_queue_list;
 		napi->out_of_order_queue_list = ofo_queue;
 	} else {
-		ofo_queue->next = skb_last;
+		ofo_queue->next = p;
 	}
 
 	if (timeout != 0) {
 		printk(KERN_NOTICE "napi_gro_flush qlen %u skb %u\n", qlen, skb_num);
 	}
 
-	printk(KERN_ERR "seq_next %u\n", ofo_queue->seq_next);
+	//printk(KERN_ERR "seq_next %u\n", ofo_queue->seq_next);
 
-	return skb_last;
+	return p;
 }
 
 /* napi->gro_list contains packets ordered by age.
