@@ -102,6 +102,7 @@
 #include <net/pkt_sched.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>
+#include <net/tcp.h>
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/module.h>
