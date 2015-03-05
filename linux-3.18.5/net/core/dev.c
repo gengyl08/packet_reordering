@@ -3928,6 +3928,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 		ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
 		ofo_queue->skb_num--;
+		ofo_queue->seq_next = max(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len);
 		napi_gro_complete(p);
 		p = p2;
 	}
@@ -3944,6 +3945,8 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 	if (timeout != 0) {
 		printk(KERN_NOTICE "napi_gro_flush qlen %u skb %u\n", qlen, skb_num);
 	}
+
+	printk(KERN_ERR "seq_next %u\n", ofo_queue->seq_next);
 
 	return skb_last;
 }
@@ -4127,6 +4130,8 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	int grow;
 	struct sk_buff_head_gro *ofo_queue;
 
+	NAPI_GRO_CB(skb)->out_of_order_queue = NULL;
+
 	if (!(skb->dev->features & NETIF_F_GRO))
 		goto normal;
 
@@ -4213,23 +4218,30 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		ofo_queue = napi_get_tcp_ofo_queue(napi, skb);
 		if (!ofo_queue) {
 			NAPI_GRO_CB(skb)->out_of_order_queue = (struct sk_buff_head_gro*)kmalloc(sizeof(struct sk_buff_head_gro), GFP_ATOMIC);
+			NAPI_GRO_CB(skb)->out_of_order_queue->seq_next = NAPI_GRO_CB(skb)->seq;
 		} else {
-			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
-			if (ofo_queue->prev_queue) {
-				ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
-			} else {
-				napi->out_of_order_queue_list = ofo_queue->next_queue;
-			}
 
-			if (ofo_queue->next_queue) {
-				ofo_queue->next_queue->prev_queue = ofo_queue->prev_queue;
+			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+
+			if (!before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
+				
+				if (ofo_queue->prev_queue) {
+					ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
+				} else {
+					napi->out_of_order_queue_list = ofo_queue->next_queue;
+				}	
+
+				if (ofo_queue->next_queue) {
+					ofo_queue->next_queue->prev_queue = ofo_queue->prev_queue;
+				}
+			} else {
+				goto normal;
 			}
 		}
 		NAPI_GRO_CB(skb)->out_of_order_queue->next = skb;
 		NAPI_GRO_CB(skb)->out_of_order_queue->prev = skb;
 		NAPI_GRO_CB(skb)->out_of_order_queue->qlen = skb_gro_len(skb);
 		NAPI_GRO_CB(skb)->out_of_order_queue->skb_num = 1;
-		NAPI_GRO_CB(skb)->out_of_order_queue->seq_next = NAPI_GRO_CB(skb)->seq;
 		NAPI_GRO_CB(skb)->out_of_order_queue->hash = NAPI_GRO_CB(skb)->tcp_hash;
 	} else {
 		NAPI_GRO_CB(skb)->out_of_order_queue = NULL;
@@ -4250,6 +4262,10 @@ ok:
 	return ret;
 
 normal:
+	ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
+	if (ofo_queue) {
+		ofo_queue->seq_next = max(ofo_queue->seq_next, NAPI_GRO_CB(skb)->seq + NAPI_GRO_CB(skb)->len);
+	}
 	printk(KERN_NOTICE "normal qlen %u skb %u\n", NAPI_GRO_CB(skb)->len, 1);
 	ret = GRO_NORMAL;
 	goto pull;

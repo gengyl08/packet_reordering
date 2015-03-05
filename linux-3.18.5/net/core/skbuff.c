@@ -3098,25 +3098,30 @@ EXPORT_SYMBOL_GPL(skb_segment);
 
 void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb) {
 
-	struct sk_buff *p = ofo_queue->next;
+	struct sk_buff *p = ofo_queue->next, *p2;
 	unsigned qlen = 0, skb_num = 0;
 
+	if (skb == NULL || skb == ofo_queue->prev) {
+		printk(KERN_ERR "skb_gro_flush should not flush the queue to empty\n");
+	}
+
 	while (p != NULL) {
+
+		p2 = NAPI_GRO_CB(p)->next;
+
 		qlen += NAPI_GRO_CB(p)->len;
 		skb_num++;
 
 		ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
 		ofo_queue->skb_num--;
-		ofo_queue->next = NAPI_GRO_CB(p)->next;
+		ofo_queue->next = p2;
+		ofo_queue->seq_next = NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len;
+		
 		netif_receive_skb_internal(p);
 		if (p != skb)
-			p = NAPI_GRO_CB(p)->next;
+			p = p2;
 		else
 			break;
-	}
-
-	if (p == NULL) {
-		ofo_queue->prev = NULL;
 	}
 
 	printk(KERN_NOTICE "skb_gro_flush qlen %u skb %u\n", qlen, skb_num);

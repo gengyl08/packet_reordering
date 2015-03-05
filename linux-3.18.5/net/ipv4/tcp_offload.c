@@ -197,6 +197,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	int i;
 	struct sk_buff_head_gro *ofo_queue;
 
+	NAPI_GRO_CB(skb)->out_of_order_queue = NULL;
 	NAPI_GRO_CB(skb)->is_tcp = true;
 
 	//printk(KERN_NOTICE "tcp0\n");
@@ -290,6 +291,7 @@ found:
 	}*/
 
 	ofo_queue = NAPI_GRO_CB(p)->out_of_order_queue;
+	NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 	//printk(KERN_NOTICE "%u\n", flush);
 	//printk(KERN_NOTICE "%u\n", ofo_queue->qlen);
 
@@ -298,6 +300,11 @@ found:
 		return head;
 	}
 	//printk(KERN_NOTICE "found1\n");
+
+	if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
+		NAPI_GRO_CB(skb)->flush = 1;
+		return NULL;
+	}
 
 	// need to make sure the one in gro_list is always the head of the ofo_queue
 	//printk(KERN_NOTICE "enqueue\n");
