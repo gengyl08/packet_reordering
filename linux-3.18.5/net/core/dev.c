@@ -3966,6 +3966,34 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 	return p;
 }
 
+
+void napi_clean_tcp_ofo_queue(struct napi_struct *napi) {
+	struct sk_buff_head_gro *ofo_queue, *ofo_queue2, *ofo_queue3;
+
+	ofo_queue = napi->out_of_order_queue_list;
+	while (ofo_queue) {
+		ofo_queue2 = ofo_queue->prev_queue;
+		ofo_queue3 = ofo_queue->next_queue;
+
+		if (jiffies - ofo_queue->age > HZ) {
+
+			kfree(ofo_queue);
+
+			if (ofo_queue2) {
+				ofo_queue2->next_queue = ofo_queue3;
+			} else {
+				napi->out_of_order_queue_list = ofo_queue3;
+			}
+
+			if (ofo_queue3) {
+				ofo_queue3->prev_queue = ofo_queue2;
+			}
+		}
+
+		ofo_queue = ofo_queue3;
+	}
+}
+
 /* napi->gro_list contains packets ordered by age.
  * youngest packets at the head of it.
  * Complete skbs in reverse order to reduce latencies.
@@ -3973,7 +4001,6 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 {
 	struct sk_buff *skb, *prev = NULL, *gro_list_old = napi->gro_list, *p, *skb_new;
-	struct sk_buff_head_gro *ofo_queue, *ofo_queue2, *ofo_queue3;
 
 	/* scan list and build reverse chain */
 	for (skb = napi->gro_list; skb != NULL; skb = skb->next) {
@@ -4021,29 +4048,6 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 				napi->gro_list = skb_new;
 			}
 		}
-	}
-
-	ofo_queue = napi->out_of_order_queue_list;
-	while (ofo_queue) {
-		ofo_queue2 = ofo_queue->prev_queue;
-		ofo_queue3 = ofo_queue->next_queue;
-
-		if (jiffies - ofo_queue->age > HZ) {
-
-			kfree(ofo_queue);
-
-			if (ofo_queue2) {
-				ofo_queue2->next_queue = ofo_queue3;
-			} else {
-				napi->out_of_order_queue_list = ofo_queue3;
-			}
-
-			if (ofo_queue3) {
-				ofo_queue3->prev_queue = ofo_queue2;
-			}
-		}
-
-		ofo_queue = ofo_queue3;
 	}
 
 	if (napi->gro_list) {
@@ -4814,6 +4818,7 @@ static void net_rx_action(struct softirq_action *h)
 
 		//printk(KERN_NOTICE "before lock 2\n");
 		spin_lock(&n->gro_lock);
+		napi_clean_tcp_ofo_queue(n);
 		//printk(KERN_NOTICE "after lock 2\n");
 
 		weight = n->weight;
