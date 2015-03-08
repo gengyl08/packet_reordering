@@ -4254,7 +4254,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	}
 	NAPI_GRO_CB(skb)->prev = NULL;
 	NAPI_GRO_CB(skb)->next = NULL;
-	//skb_shinfo(skb)->gso_size = skb_gro_len(skb);
+	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
 	skb->next = napi->gro_list;
 	napi->gro_list = skb;
 
