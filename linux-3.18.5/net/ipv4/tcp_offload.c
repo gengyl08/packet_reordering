@@ -276,17 +276,17 @@ found:
 	flush |= (__force int)(th->ack_seq ^ th2->ack_seq);
 	if (flush)
 	printk(KERN_NOTICE "flush3 %u\n", flush);
-	for (i = sizeof(*th); i < thlen; i += 4)
-		flush |= *(u32 *)((u8 *)th + i) ^
-			 *(u32 *)((u8 *)th2 + i);
-	if (flush)
-	printk(KERN_NOTICE "flush4 %u\n", flush);
+	//for (i = sizeof(*th); i < thlen; i += 4)
+	//	flush |= *(u32 *)((u8 *)th + i) ^
+	//		 *(u32 *)((u8 *)th2 + i);
+	//if (flush)
+	//printk(KERN_NOTICE "flush4 %u\n", flush);
 
 	mss = tcp_skb_mss(p);
 
-	flush |= (len - 1) >= mss;
-	if (flush)
-	printk(KERN_NOTICE "flush5 %u %u\n", len, mss);
+	//flush |= (len - 1) >= mss;
+	//if (flush)
+	//printk(KERN_NOTICE "flush5 %u %u\n", len, mss);
 	/* allow out of order packets to be merged latter */
 	//flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
 
