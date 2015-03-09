@@ -34,7 +34,7 @@ int init_module(void)
 {
   printk(KERN_INFO "register sender_reorder\n");
   nfho.hook = (nf_hookfn *)hook_func;
-  nfho.hooknum = 5;
+  nfho.hooknum = 4;
   nfho.pf = NFPROTO_IPV4;
   nfho.priority = NF_IP_PRI_FIRST;
   nf_register_hook(&nfho);
