@@ -23,6 +23,7 @@ int sender_reorder_enqueue_packet(struct nf_queue_entry *entry, unsigned int que
   if (tcp_header->syn || tcp_header->fin || tcp_header->urg || tcp_header->rst || tcp_header->psh) {
     if (entry_saved != NULL) {
       nf_reinject(entry_saved, NF_ACCEPT);
+      entry_saved = NULL;
     }
     nf_reinject(entry, NF_ACCEPT);
     return 0;
