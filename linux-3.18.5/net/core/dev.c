@@ -3923,6 +3923,8 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 	while (p != skb_last) {
 		p2 = NAPI_GRO_CB(p)->next;
+		if (p2)
+			NAPI_GRO_CB(p2)->prev = NULL;
 
 		qlen += NAPI_GRO_CB(p)->len;
 		skb_num++;
@@ -3934,8 +3936,10 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 		p = p2;
 	}
 
-	while (p != NULL && ofo_queue->seq_next == NAPI_GRO_CB(p)->seq) {
+	while (p != NULL && !before(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq)) {
 		p2 = NAPI_GRO_CB(p)->next;
+		if (p2)
+			NAPI_GRO_CB(p2)->prev = NULL;
 
 		qlen += NAPI_GRO_CB(p)->len;
 		skb_num++;

@@ -3120,8 +3120,10 @@ void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb) {
 		netif_receive_skb_internal(p);
 		if (p != skb)
 			p = p2;
-		else
+		else {
+			NAPI_GRO_CB(p2)->prev = NULL;
 			break;
+		}
 	}
 
 	printk(KERN_NOTICE "skb_gro_flush qlen %u skb %u\n", qlen, skb_num);
