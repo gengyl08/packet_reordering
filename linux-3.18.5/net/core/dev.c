@@ -4216,8 +4216,12 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (same_flow)
 		goto ok;
 
-	if (NAPI_GRO_CB(skb)->flush)
+	if (NAPI_GRO_CB(skb)->flush) {
+		if (!NAPI_GRO_CB(skb)->out_of_order_queue) {
+			NAPI_GRO_CB(skb)->out_of_order_queue = napi_get_tcp_ofo_queue(napi, skb);
+		}
 		goto normal;
+	}
 
 	NAPI_GRO_CB(skb)->count = 1;
 	NAPI_GRO_CB(skb)->age = jiffies;
