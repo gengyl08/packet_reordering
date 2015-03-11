@@ -3899,6 +3899,14 @@ out:
 	return netif_receive_skb_internal(skb);
 }
 
+static __u32 max_seq(__u32 seq1, __u32 seq2) {
+        if (before(seq1, seq2)) {
+                return seq2;
+        } else {
+                return seq1;
+        }
+}
+
 static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff *skb, unsigned long timeout) {
 
 	struct sk_buff_head_gro *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
@@ -3931,7 +3939,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 		ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
 		ofo_queue->skb_num--;
-		ofo_queue->seq_next = max(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len);
+		ofo_queue->seq_next = max_seq(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len);
 		napi_gro_complete(p);
 		p = p2;
 	}
@@ -3946,7 +3954,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 		ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
 		ofo_queue->skb_num--;
-		ofo_queue->seq_next = max(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len);
+		ofo_queue->seq_next = max_seq(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len);
 		napi_gro_complete(p);
 		p = p2;
 		printk(KERN_NOTICE "flush in sequence skb\n");
@@ -4293,7 +4301,7 @@ ok:
 normal:
 	ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
 	if (ofo_queue) {
-		ofo_queue->seq_next = max(ofo_queue->seq_next, NAPI_GRO_CB(skb)->seq + NAPI_GRO_CB(skb)->len);
+		ofo_queue->seq_next = max_seq(ofo_queue->seq_next, NAPI_GRO_CB(skb)->seq + NAPI_GRO_CB(skb)->len);
 	}
 	printk(KERN_NOTICE "normal qlen %u skb %u\n", NAPI_GRO_CB(skb)->len, 1);
 	ret = GRO_NORMAL;
