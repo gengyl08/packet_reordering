@@ -3117,7 +3117,7 @@ void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb) {
 		ofo_queue->next = p2;
 		ofo_queue->seq_next = NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len;
 		
-		netif_receive_skb_internal(p);
+		napi_gro_complete(p);
 		if (p != skb)
 			p = p2;
 		else {

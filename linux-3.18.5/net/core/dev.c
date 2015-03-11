@@ -3865,7 +3865,7 @@ static void flush_backlog(void *arg)
 	}
 }
 
-static int napi_gro_complete(struct sk_buff *skb)
+int napi_gro_complete(struct sk_buff *skb)
 {
 	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
