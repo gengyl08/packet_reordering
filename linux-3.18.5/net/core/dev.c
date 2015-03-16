@@ -3920,7 +3920,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 	if (timeout != 0) {
 		while (pl != NULL) {
-			if (jiffies - NAPI_GRO_CB(pl)->age <= timeout) {
+			if (jiffies - NAPI_GRO_CB(pl)->age < timeout) {
 				skb_last = pl;
 				pl = NAPI_GRO_CB(pl)->prev;
 			} else {
@@ -4687,17 +4687,14 @@ void napi_hash_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL_GPL(napi_hash_del);
 
-static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
-{
-	struct napi_struct *napi;
-	struct sk_buff *skb, *prev = NULL;
-	//unsigned long flags;
+static void napi_flush_watchdog_tasklet(unsigned long _napi) {
 
-	napi = container_of(timer, struct napi_struct, timer);
+	struct napi_struct *napi = (struct napi_struct*)_napi;
+	struct sk_buff *skb, *prev = NULL;
 
 	//printk(KERN_NOTICE "before lock 1\n");
 	if (!spin_trylock(&napi->gro_lock)) {
-		return HRTIMER_NORESTART;
+		return;
 	}
 	//printk(KERN_NOTICE "after lock 1\n");
 
@@ -4723,6 +4720,19 @@ static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 	spin_unlock(&napi->gro_lock);
 	//printk(KERN_NOTICE "after unlock 1\n");
 
+	return;
+}
+
+static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
+{
+	struct napi_struct *napi;
+	struct sk_buff *skb, *prev = NULL;
+	//unsigned long flags;
+
+	napi = container_of(timer, struct napi_struct, timer);
+
+	tasklet_hi_schedule(&napi->timer_timeout);
+
 	return HRTIMER_NORESTART;
 }
 
@@ -4733,6 +4743,7 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 
 	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	napi->timer.function = napi_flush_watchdog;
+	tasklet_init(&napi->timer_timeout, napi_flush_watchdog_tasklet, (unsigned long)napi);
 	spin_lock_init(&napi->gro_lock);
 
 	napi->gro_count = 0;
@@ -4762,6 +4773,8 @@ void netif_napi_del(struct napi_struct *napi)
 	list_del_init(&napi->dev_list);
 
 	hrtimer_cancel(&napi->timer);
+
+	tasklet_kill(&napi->timer_timeout);
 
 	napi_free_frags(napi);
 

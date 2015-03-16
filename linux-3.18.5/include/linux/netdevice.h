@@ -316,6 +316,7 @@ struct napi_struct {
 	struct sk_buff_head_gro	*out_of_order_queue_list;
 	struct sk_buff		*skb;
 	struct hrtimer		timer;
+	struct tasklet_struct	timer_timeout;
 	spinlock_t 			gro_lock;
 	struct list_head	dev_list;
 	struct hlist_node	napi_hash_node;
