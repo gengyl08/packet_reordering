@@ -178,7 +178,7 @@ out:
 struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
-	struct sk_buff *p, *p2, *p3, *p4;
+	struct sk_buff *p, *p2, *p3, *p4, *p_next, *p2_next;
 	struct tcphdr *th;
 	struct tcphdr *th2;
 	__u32 seq;
@@ -196,6 +196,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	int flush = 1;
 	int i;
 	struct sk_buff_head_gro *ofo_queue;
+	int err;
 
 	NAPI_GRO_CB(skb)->out_of_order_queue = NULL;
 	NAPI_GRO_CB(skb)->is_tcp = true;
@@ -318,7 +319,9 @@ found:
 	// need to make sure the one in gro_list is always the head of the ofo_queue
 	//printk(KERN_NOTICE "enqueue\n");
 	NAPI_GRO_CB(skb)->age = jiffies;
-	for (p2 = NAPI_GRO_CB(p)->out_of_order_queue->next; p2 != NULL; p2 = NAPI_GRO_CB(p2)->next) {
+	p2 = NAPI_GRO_CB(p)->out_of_order_queue->next;
+	p_next = p->next;
+	while (p2) {
 		seq2 = NAPI_GRO_CB(p2)->seq;
 		len2 = NAPI_GRO_CB(p2)->len;
 		seq_next2 = seq2 + len2;
@@ -341,7 +344,7 @@ found:
 				NAPI_GRO_CB(p2)->prev = skb;
 
 				*head = skb;
-				skb->next = p->next;
+				skb->next = p_next;
 			} else {
 				NAPI_GRO_CB(NAPI_GRO_CB(p2)->prev)->next = skb;
 				NAPI_GRO_CB(p2)->prev = skb;
@@ -359,7 +362,7 @@ found:
 				p3 = NAPI_GRO_CB(p2)->next;
 				if (p3 != NULL) {
 					*head = p3;
-					p3->next = p->next;
+					p3->next = p_next;
 					skb_gro_flush(ofo_queue, p2);
 					NAPI_GRO_CB(skb)->flush = 1;
 					return NULL;
@@ -379,7 +382,7 @@ found:
 				ofo_queue->next = skb;
 
 				*head = skb;
-				skb->next = p->next;
+				skb->next = p_next;
 			} else {
 				NAPI_GRO_CB(NAPI_GRO_CB(p2)->prev)->next = skb;
 			}
@@ -399,19 +402,47 @@ found:
 		} else if (seq == seq_next2) {
 			//printk(KERN_NOTICE "enqueue2\n");
 
-			if (skb_gro_merge(p2, skb)) {
-				//printk(KERN_NOTICE "merge fail\n");
-				printk(KERN_NOTICE "flush point 4\n");
-				p3 = NAPI_GRO_CB(p2)->next;
-				if (p3 != NULL) {
-					*head = p3;
-					p3->next = p->next;
-					skb_gro_flush(ofo_queue, p2);
-					NAPI_GRO_CB(skb)->flush = 1;
-					return NULL;
+			if (err = skb_gro_merge(p2, skb)) {
+
+				if (err == -E2BIG) {
+					printk(KERN_NOTICE "flush point 40\n");
+					p3 = NAPI_GRO_CB(p2)->next;
+					if (p3 != NULL) {
+						*head = p3;
+						p3->next = p_next;
+						skb_gro_flush(ofo_queue, p2);
+						p2 = p3;
+						continue;
+					} else {
+						*head = skb;
+						skb->next = p_next;
+						skb_gro_flush(ofo_queue, p2);
+
+						NAPI_GRO_CB(skb)->same_flow = 1;
+						NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+						NAPI_GRO_CB(skb)->prev = NULL;
+						NAPI_GRO_CB(skb)->next = NULL;
+
+						ofo_queue->next = skb;
+						ofo_queue->prev = skb;
+						ofo_queue->qlen = len;
+						ofo_queue->skb_num = 1;
+
+						return NULL;
+					}
 				} else {
-					NAPI_GRO_CB(skb)->flush = 1;
-					return head;
+					printk(KERN_NOTICE "flush point 41\n");
+					p3 = NAPI_GRO_CB(p2)->next;
+					if (p3 != NULL) {
+						*head = p3;
+						p3->next = p_next;
+						skb_gro_flush(ofo_queue, p2);
+						NAPI_GRO_CB(skb)->flush = 1;
+						return NULL;
+					} else {
+						NAPI_GRO_CB(skb)->flush = 1;
+						return head;
+					}
 				}
 			}
 
@@ -428,18 +459,24 @@ found:
 				if (seq_next == NAPI_GRO_CB(p3)->seq) {
 
 					//printk(KERN_NOTICE "merge p3\n");
-					if (skb_gro_merge(p2, p3)) {
-						//printk(KERN_NOTICE "merge fail\n");
-						printk(KERN_NOTICE "flush point 5\n");
-						p4 = NAPI_GRO_CB(p3)->next;
-						if (p4 != NULL) {
-							*head = p4;
-							p4->next = p->next;
-							skb_gro_flush(ofo_queue, p3);
+					if (err = skb_gro_merge(p2, p3)) {
+						if (err == -E2BIG) {
+							*head = p3;
+							p3->next = p_next;
+							skb_gro_flush(p2);
 							return NULL;
 						} else {
-							printk(KERN_NOTICE "flush point 6\n");
-							return head;
+							//printk(KERN_NOTICE "merge fail\n");
+							printk(KERN_NOTICE "flush point 5\n");
+							p4 = NAPI_GRO_CB(p3)->next;
+							if (p4 != NULL) {
+								*head = p4;
+								p4->next = p_next;
+								skb_gro_flush(ofo_queue, p3);
+								return NULL;
+							} else {
+								return head;
+							}
 						}
 					}	
 
@@ -485,6 +522,7 @@ found:
 				break;
 
 			} else {
+				p2 = NAPI_GRO_CB(p2)->next;
 				continue;
 			}
 
