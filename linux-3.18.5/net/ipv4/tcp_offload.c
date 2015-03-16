@@ -178,7 +178,7 @@ out:
 struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
-	struct sk_buff *p, *p2, *p3, *p4, *p_next, *p2_next;
+	struct sk_buff *p, *p2, *p3, *p4, *p_next;
 	struct tcphdr *th;
 	struct tcphdr *th2;
 	__u32 seq;
@@ -402,7 +402,7 @@ found:
 		} else if (seq == seq_next2) {
 			//printk(KERN_NOTICE "enqueue2\n");
 
-			if (err = skb_gro_merge(p2, skb)) {
+			if ((err = skb_gro_merge(p2, skb))) {
 
 				if (err == -E2BIG) {
 					printk(KERN_NOTICE "flush point 40\n");
@@ -459,11 +459,11 @@ found:
 				if (seq_next == NAPI_GRO_CB(p3)->seq) {
 
 					//printk(KERN_NOTICE "merge p3\n");
-					if (err = skb_gro_merge(p2, p3)) {
+					if ((err = skb_gro_merge(p2, p3))) {
 						if (err == -E2BIG) {
 							*head = p3;
 							p3->next = p_next;
-							skb_gro_flush(p2);
+							skb_gro_flush(ofo_queue, p2);
 							return NULL;
 						} else {
 							//printk(KERN_NOTICE "merge fail\n");

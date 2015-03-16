@@ -4726,8 +4726,6 @@ static void napi_flush_watchdog_tasklet(unsigned long _napi) {
 static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 {
 	struct napi_struct *napi;
-	struct sk_buff *skb, *prev = NULL;
-	//unsigned long flags;
 
 	napi = container_of(timer, struct napi_struct, timer);
 
