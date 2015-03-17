@@ -221,15 +221,29 @@ class Delay:
         self.queue = queue
         self.module_base_addr = DELAY_BASE_ADDR[queue]
         self.delay_reg_offset = "0x0"
+        self.drop_loop_reg_offset = "0x1"
+        self.drop_count_reg_offset = "0x2"
 
         # The internal delay_length is in ticks (integer)
         self.delay = 0
+        self.drop_loop = 0
+        self.drop_count = 0
         self.get_delay()
+        self.get_drop_loop()
+        self.get_drop_count()
 
     # delay is stored as an integer value
     def get_delay(self):
         delay = rdaxi(self.reg_addr(self.delay_reg_offset))
         self.delay = int(delay, 16)
+
+    def get_drop_loop(self):
+        drop_loop = rdaxi(self.reg_addr(self.drop_loop_reg_offset))
+        self.drop_loop = int(drop_loop, 16)
+
+    def get_drop_count(self):
+        drop_count = rdaxi(self.reg_addr(self.drop_count_reg_offset))
+        self.drop_count = int(drop_count, 16)
 
     def to_string(self):
         return '{:,}'.format(int(self.delay*1000000000/DATAPATH_FREQUENCY))+'ns'
@@ -239,11 +253,19 @@ class Delay:
         wraxi(self.reg_addr(self.delay_reg_offset), hex(delay))
         self.get_delay()
 
+    def set_drop_loop(self, drop_loop):
+        wraxi(self.reg_addr(self.drop_loop_reg_offset), hex(drop_loop))
+        self.get_drop_loop()
+
+    def set_drop_count(self, drop_count):
+        wraxi(self.reg_addr(self.drop_count_reg_offset), hex(drop_count))
+        self.get_drop_count()
+
     def reg_addr(self, offset):
         return add_hex(self.module_base_addr, offset)
 
     def print_status(self):
-        print 'queue: '+str(self.queue)+' delay: '+str(self.delay)
+        print 'queue: '+str(self.queue)+' delay: '+str(self.delay)+' drop_loop: '+str(self.drop_loop)+' drop_count: '+str(self.drop_count)
 
 
 
@@ -284,6 +306,9 @@ if __name__=="__main__":
     # configure delay modules
     for iface, d in delays.iteritems():
         d.set_delay(iface*320)
+        d.set_drop_loop(0)
+        d.set_drop_count(0)
         if args.printDelay:
             d.print_status()
+
         
