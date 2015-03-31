@@ -58,6 +58,7 @@ RATE_LIMITER_BASE_ADDR = {0 : "0x77e80000",
 
 parser = argparse.ArgumentParser(description='Argument Parser')
 parser.add_argument('queueNum', help='max queue num', type=int)
+parser.add_argument('--delay', help='delays values for each queue', nargs=5)
 parser.add_argument('--resetDrop', help='reset drop counters', action='store_true')
 parser.add_argument('--printQueueNum', help='print max queue num', action='store_true')
 parser.add_argument('--printDrop', help='print drop counters', action='store_true')
@@ -304,8 +305,10 @@ if __name__=="__main__":
         reorderOutputQueues.print_drop();
 
     # configure delay modules
+    if parser.delay is None:
+        parser.delay = [0] * 5
     for iface, d in delays.iteritems():
-        d.set_delay(iface*320)
+        d.set_delay(parser.delay[iface])
         d.set_drop_loop(0)
         d.set_drop_count(0)
         if args.printDelay:
