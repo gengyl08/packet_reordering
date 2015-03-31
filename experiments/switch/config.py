@@ -59,6 +59,8 @@ RATE_LIMITER_BASE_ADDR = {0 : "0x77e80000",
 parser = argparse.ArgumentParser(description='Argument Parser')
 parser.add_argument('queueNum', help='max queue num', type=int)
 parser.add_argument('--delay', help='delays values for each queue', nargs=5, default=[0, 0, 0, 0, 0], type=int)
+parser.add_argument('--dropLoop', help='drop_loop for each queue', nargs=5, default=[0, 0, 0, 0, 0], type=int)
+parser.add_argument('--dropCount', help='drop_count for each queue', nargs=5, default=[0, 0, 0, 0, 0], type=int)
 parser.add_argument('--resetDrop', help='reset drop counters', action='store_true')
 parser.add_argument('--printQueueNum', help='print max queue num', action='store_true')
 parser.add_argument('--printDrop', help='print drop counters', action='store_true')
@@ -307,8 +309,8 @@ if __name__=="__main__":
     # configure delay modules
     for iface, d in delays.iteritems():
         d.set_delay(args.delay[iface])
-        d.set_drop_loop(0)
-        d.set_drop_count(0)
+        d.set_drop_loop(args.dropLoop[iface])
+        d.set_drop_count(args.dropCount[iface])
         if args.printDelay:
             d.print_status()
 
