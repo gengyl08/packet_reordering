@@ -21,7 +21,7 @@ def measure(delay, drop_loop, drop_count, is_new_kernel, flow_num):
     # open flow_num of iperf flows on the sender
     p_sender = [None] * flow_num
     for i in range(flow_num):
-    	p_sender[i] = subprocess.Popen('ssh {0} iperf -c 192.168.0.2 -i 1 -t 30 -f g'.format(sender).split(), stdout=subprocess.PIPE)
+    	p_sender[i] = subprocess.Popen('ssh {0} taskset -c {1} iperf -c 192.168.0.2 -i 1 -t 30 -f g'.format(sender, i).split(), stdout=subprocess.PIPE)
     
     # measure cpu utilization on the receiver
     time.sleep(5)
@@ -50,9 +50,9 @@ def measure(delay, drop_loop, drop_count, is_new_kernel, flow_num):
 
 if __name__=="__main__":
 	f = open('measurements.txt', 'w')
-	for flow_num in range(1, 10):
-		for drop_loop in [0, 10, 100, 1000, 10000, 100000, 1000000]:
-			for delay in [320*x for x in range(10)]:
+	for flow_num in range(1, 5):
+		for drop_loop in [0, 100, 1000, 10000, 100000, 1000000]:
+			for delay in [1600*x for x in [0, 1, 4, 8, 10]]:
 				th, cpu0, cpu1 = measure(delay, drop_loop, int(drop_loop!=0), True, flow_num)
 				f.write('%d %d %d %f %f %f\n' % (flow_num, drop_loop, delay, th, cpu0, cpu1))
 	f.close()
