@@ -61,10 +61,12 @@ parser.add_argument('queueNum', help='max queue num', type=int)
 parser.add_argument('--delay', help='delays values for each queue', nargs=5, default=[0, 0, 0, 0, 0], type=int)
 parser.add_argument('--dropLoop', help='drop_loop for each queue', nargs=5, default=[0, 0, 0, 0, 0], type=int)
 parser.add_argument('--dropCount', help='drop_count for each queue', nargs=5, default=[0, 0, 0, 0, 0], type=int)
+parser.add_argument('--splitRatio', help='split_ratio for each queue', nargs=5, default=[0, 0, 0, 0, 0], type=int)
 parser.add_argument('--resetDrop', help='reset drop counters', action='store_true')
 parser.add_argument('--printQueueNum', help='print max queue num', action='store_true')
 parser.add_argument('--printDrop', help='print drop counters', action='store_true')
 parser.add_argument('--printDelay', help='print delays', action='store_true')
+parser.add_argument('--printSplitRatio', help='print split ratios', action='store_true')
 
 class ReorderOutputQueues:
 
@@ -73,14 +75,17 @@ class ReorderOutputQueues:
         self.queues_num_reg_offset = "0x00"
         self.reset_drop_counts_reg_offset = "0x01"
         self.drop_counts_reg_offset = ["0x10", "0x11", "0x12", "0x13", "0x14"]
+        self.split_ratios_reg_offset = ["0x20", "0x21", "0x22", "0x23", "0x24"]
 
         self.queues_num = 0
         self.reset_drop_counts = False
         self.drop_counts = [0, 0, 0, 0, 0]
+        self.split_ratios = [0, 0, 0, 0, 0]
 
         self.get_queues_num()
         self.get_reset_drop_counts()
         self.get_drop_counts()
+        self.get_split_ratios()
 
     def get_queues_num(self):
         queues_num = rdaxi(self.reg_addr(self.queues_num_reg_offset))
@@ -112,6 +117,16 @@ class ReorderOutputQueues:
             drop_count = rdaxi(self.reg_addr(self.drop_counts_reg_offset[i]))
             self.drop_counts[i] = int(drop_count, 16)
 
+    def get_split_ratios(self):
+        for i in range(5):
+            split_ratio = rdaxi(self.reg_addr(self.split_ratios_reg_offset[i]))
+            self.split_ratios[i] = int(split_ratio, 16)
+
+    def set_split_ratios(self, split_ratios):
+        for i in range(5):
+            wraxi(self.reg_addr(self.split_ratios_reg_offset[i]), hex(split_ratios[i]))
+        self.get_split_ratios()
+
     def reg_addr(self, offset):
         return add_hex(self.module_base_addr, offset)
 
@@ -127,6 +142,10 @@ class ReorderOutputQueues:
     def print_drop(self):
         for i in range(5):
             print "Queue " + str(i) + " Drop Count: " + str(self.drop_counts[i])
+
+    def printSplitRatio(self):
+        for i in range(5):
+            print "Queue " + str(i) + "Split Ratio: " + str(self.split_ratios[i]) 
 
 
 """
@@ -297,6 +316,7 @@ if __name__=="__main__":
     """
 
     reorderOutputQueues.set_queues_num(args.queueNum)
+    reorderOutputQueues.set_split_ratios(args.splitRatio)
     if args.resetDrop:
         reorderOutputQueues.set_reset_drop_counts(True)
         reorderOutputQueues.set_reset_drop_counts(False)
@@ -304,7 +324,9 @@ if __name__=="__main__":
     if args.printQueueNum:
         reorderOutputQueues.print_queueNum()
     if args.printDrop:
-        reorderOutputQueues.print_drop();
+        reorderOutputQueues.print_drop()
+    if args.printSplitRatio:
+        reorderOutputQueues.printSplitRatio()
 
     # configure delay modules
     for iface, d in delays.iteritems():
