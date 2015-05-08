@@ -60,8 +60,8 @@ class ReorderOutputQueues:
 
     def __init__(self):
         self.module_base_addr = REORDER_OUTPUT_QUEUES_BASE_ADDR
-        self.drop_counts_reg_offset = ["0x3", "0x4", "0x5", "0x6"]
-        self.split_ratios_reg_offset = ["0x0", "0x1", "0x2"]
+        self.drop_counts_reg_offset = ["0x0C", "0x10", "0x14", "0x18"]
+        self.split_ratios_reg_offset = ["0x00", "0x04", "0x08"]
 
         self.drop_counts = [0, 0, 0, 0]
         self.split_ratios = [0, 0, 0, 0]
@@ -82,7 +82,7 @@ class ReorderOutputQueues:
         self.split_ratios = [x/4294967295 for x in self.split_ratios]
         self.split_ratios[3] = 1.0
 
-        for i in range(1, 3):
+        for i in range(1, 4):
             self.split_ratios[i] = max(0, self.split_ratios[i] - sum(self.split_ratios[:i]))
 
     def set_split_ratios(self, split_ratios):
