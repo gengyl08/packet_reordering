@@ -103,11 +103,11 @@ class ReorderOutputQueues:
         return add_hex(self.module_base_addr, offset)
 
     def print_drop(self):
-        for i in range(5):
+        for i in range(4):
             print "Queue " + str(i) + " Drop Count: " + str(self.drop_counts[i])
 
     def printSplitRatio(self):
-        for i in range(5):
+        for i in range(4):
             print "Queue " + str(i) + " Split Ratio: " + str(self.split_ratios[i])
 
 class Delay:
