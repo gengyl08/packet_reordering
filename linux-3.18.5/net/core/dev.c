@@ -4850,7 +4850,7 @@ static void net_rx_action(struct softirq_action *h)
 		spin_lock(&n->gro_lock);
 		napi_clean_tcp_ofo_queue(n);
 		//printk(KERN_NOTICE "after lock 2\n");
-		n->timestamp = ktime_get();
+		//n->timestamp = ktime_get();
 		weight = n->weight;
 
 		/* This NAPI_STATE_SCHED test is for avoiding a race
