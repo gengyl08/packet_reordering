@@ -3907,11 +3907,12 @@ static __u32 max_seq(__u32 seq1, __u32 seq2) {
         }
 }
 
-static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff *skb, unsigned long timeout) {
+static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff *skb, u64 timeout) {
 
 	struct sk_buff_head_gro *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
 	struct sk_buff *p = ofo_queue->next, *p2, *pl = ofo_queue->prev, *skb_last = NULL;
 	unsigned qlen = 0, skb_num = 0;
+	u64 timestamp = ktime_to_ns(ktime_get());
 
 	if (ofo_queue == NULL) {
 		napi_gro_complete(skb);
@@ -3920,7 +3921,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 	if (timeout != 0) {
 		while (pl != NULL) {
-			if (jiffies - NAPI_GRO_CB(pl)->age < timeout) {
+			if (timestamp - NAPI_GRO_CB(pl)->timestamp < timeout) {
 				skb_last = pl;
 				pl = NAPI_GRO_CB(pl)->prev;
 			} else {
@@ -4045,7 +4046,7 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 		} else {
 			
 			p = skb->next;
-			skb_new = dev_gro_complete(napi, skb, HZ * 0.1);
+			skb_new = dev_gro_complete(napi, skb, 100000);
 			if (!skb_new) {
 				if (prev != NULL) {
 					prev->next = p;
@@ -4233,6 +4234,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 	NAPI_GRO_CB(skb)->count = 1;
 	NAPI_GRO_CB(skb)->age = jiffies;
+	NAPI_GRO_CB(skb)->timestamp = ktime_to_ns(ktime_get());
 	//NAPI_GRO_CB(skb)->last = skb;
 	if (NAPI_GRO_CB(skb)->is_tcp) {
 
@@ -4697,7 +4699,7 @@ static void napi_flush_watchdog_tasklet(unsigned long _napi) {
 		return;
 	}
 	//printk(KERN_NOTICE "after lock 1\n");
-
+	/*
 	for (skb = napi->gro_list; skb != NULL;skb = skb->next) {
 		skb->prev = prev;
 		prev = skb;
@@ -4713,7 +4715,8 @@ static void napi_flush_watchdog_tasklet(unsigned long _napi) {
 
 	napi->gro_count = 0;
 	napi->gro_list = NULL;
-
+	*/
+	napi_gro_flush(napi, false);
 	printk(KERN_NOTICE "napi_flush_timer\n");
 
 	//printk(KERN_NOTICE "before unlock 1\n");
@@ -4847,7 +4850,7 @@ static void net_rx_action(struct softirq_action *h)
 		spin_lock(&n->gro_lock);
 		napi_clean_tcp_ofo_queue(n);
 		//printk(KERN_NOTICE "after lock 2\n");
-
+		n->timestamp = ktime_get();
 		weight = n->weight;
 
 		/* This NAPI_STATE_SCHED test is for avoiding a race

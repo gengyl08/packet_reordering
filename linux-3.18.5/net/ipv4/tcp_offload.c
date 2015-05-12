@@ -303,7 +303,7 @@ found:
 	//printk(KERN_NOTICE "%u\n", flush);
 	//printk(KERN_NOTICE "%u\n", ofo_queue->qlen);
 
-	if (flush || len + ofo_queue->qlen >= 65536 * 4) {
+	if (flush) {
 		printk(KERN_NOTICE "flush point 1\n");
 		NAPI_GRO_CB(skb)->flush = 1;
 		return head;
@@ -319,6 +319,7 @@ found:
 	// need to make sure the one in gro_list is always the head of the ofo_queue
 	//printk(KERN_NOTICE "enqueue\n");
 	NAPI_GRO_CB(skb)->age = jiffies;
+	NAPI_GRO_CB(skb)->timestamp = ktime_to_ns(ktime_get());
 	p2 = NAPI_GRO_CB(p)->out_of_order_queue->next;
 	p_next = p->next;
 	while (p2) {
@@ -357,18 +358,42 @@ found:
 		} else if (seq_next == seq2) {
 			//printk(KERN_NOTICE "enqueue1\n");
 
-			if (skb_gro_merge(skb, p2)) {
-				printk(KERN_NOTICE "flush point 3\n");
-				p3 = NAPI_GRO_CB(p2)->next;
-				if (p3 != NULL) {
-					*head = p3;
-					p3->next = p_next;
-					skb_gro_flush(ofo_queue, p2);
-					NAPI_GRO_CB(skb)->flush = 1;
-					return NULL;
+			if ((err = skb_gro_merge(skb, p2))) {
+
+				if (err == -E2BIG) {
+					NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+					NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
+					NAPI_GRO_CB(skb)->next = p2;
+					ofo_queue->qlen += len;
+					ofo_queue->skb_num++;
+					if (NAPI_GRO_CB(p2)->prev == NULL) {
+						ofo_queue->next = skb;
+						NAPI_GRO_CB(p2)->prev = skb;
+
+						*head = skb;
+						skb->next = p_next;
+					} else {
+						NAPI_GRO_CB(NAPI_GRO_CB(p2)->prev)->next = skb;
+						NAPI_GRO_CB(p2)->prev = skb;
+					}
+
+					merged = 1;
+					NAPI_GRO_CB(skb)->same_flow = 1;
+					break;
+
 				} else {
-					NAPI_GRO_CB(skb)->flush = 1;
-					return head;
+					printk(KERN_NOTICE "flush point 3\n");
+					p3 = NAPI_GRO_CB(p2)->next;
+					if (p3 != NULL) {
+						*head = p3;
+						p3->next = p_next;
+						skb_gro_flush(ofo_queue, p2);
+						NAPI_GRO_CB(skb)->flush = 1;
+						return NULL;
+					} else {
+						NAPI_GRO_CB(skb)->flush = 1;
+						return head;
+					}
 				}
 			}
 
@@ -376,6 +401,7 @@ found:
 			NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
 			NAPI_GRO_CB(skb)->next = NAPI_GRO_CB(p2)->next;
 			NAPI_GRO_CB(skb)->age = NAPI_GRO_CB(p2)->age;
+			NAPI_GRO_CB(skb)->timestamp = NAPI_GRO_CB(p2)->timestamp;
 			ofo_queue->qlen += len;
 
 			if (NAPI_GRO_CB(p2)->prev == NULL) {
@@ -405,33 +431,27 @@ found:
 			if ((err = skb_gro_merge(p2, skb))) {
 
 				if (err == -E2BIG) {
-					printk(KERN_NOTICE "flush point 40\n");
 					p3 = NAPI_GRO_CB(p2)->next;
 					if (p3 != NULL) {
-						*head = p3;
-						p3->next = p_next;
-						skb_gro_flush(ofo_queue, p2);
 						p2 = p3;
 						continue;
 					} else {
-						*head = skb;
-						skb->next = p_next;
-						skb_gro_flush(ofo_queue, p2);
-
-						NAPI_GRO_CB(skb)->same_flow = 1;
 						NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
-						NAPI_GRO_CB(skb)->prev = NULL;
+						NAPI_GRO_CB(skb)->prev = p2;
 						NAPI_GRO_CB(skb)->next = NULL;
 
-						ofo_queue->next = skb;
-						ofo_queue->prev = skb;
-						ofo_queue->qlen = len;
-						ofo_queue->skb_num = 1;
+						ofo_queue->qlen += len;
+						ofo_queue->skb_num++;
 
-						return NULL;
+						NAPI_GRO_CB(p2)->next = skb;
+						ofo_queue->prev = skb;
+						
+						merged = 1;
+						NAPI_GRO_CB(skb)->same_flow = 1;
+						break;
 					}
 				} else {
-					printk(KERN_NOTICE "flush point 41\n");
+					printk(KERN_NOTICE "flush point 4\n");
 					p3 = NAPI_GRO_CB(p2)->next;
 					if (p3 != NULL) {
 						*head = p3;
@@ -461,9 +481,6 @@ found:
 					//printk(KERN_NOTICE "merge p3\n");
 					if ((err = skb_gro_merge(p2, p3))) {
 						if (err == -E2BIG) {
-							*head = p3;
-							p3->next = p_next;
-							skb_gro_flush(ofo_queue, p2);
 							return NULL;
 						} else {
 							//printk(KERN_NOTICE "merge fail\n");
@@ -478,12 +495,13 @@ found:
 								return head;
 							}
 						}
-					}	
+					}
 
 					ofo_queue->skb_num--;	
 
 					NAPI_GRO_CB(p2)->next = NAPI_GRO_CB(p3)->next;
 					NAPI_GRO_CB(p2)->age = min(NAPI_GRO_CB(p2)->age, NAPI_GRO_CB(p3)->age);
+					NAPI_GRO_CB(p2)->timestamp = min(NAPI_GRO_CB(p2)->timestamp, NAPI_GRO_CB(p3)->timestamp);
 					
 					skb_gro_free(p3);	
 

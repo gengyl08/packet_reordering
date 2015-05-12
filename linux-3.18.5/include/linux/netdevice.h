@@ -315,6 +315,7 @@ struct napi_struct {
 	struct sk_buff		*gro_list;
 	struct sk_buff_head_gro	*out_of_order_queue_list;
 	struct sk_buff		*skb;
+	struct ktime_t		timestamp;
 	struct hrtimer		timer;
 	struct tasklet_struct	timer_timeout;
 	spinlock_t 			gro_lock;
@@ -1930,6 +1931,9 @@ struct napi_gro_cb {
 	/* if this skb is a TCP packet */
 	bool is_tcp;
 	__u32 tcp_hash;
+
+	/* similar to age, for tcp reordering only */
+	u64 timestamp;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
