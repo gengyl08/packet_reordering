@@ -3928,6 +3928,10 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 				break;
 			}
 		}
+
+		if (skb_last != NULL) {
+			printk(KERN_NOTICE "age: %u\n", timestamp - NAPI_GRO_CB(skb_last)->timestamp);
+		}
 	}
 
 	while (p != skb_last) {
