@@ -1,0 +1,27 @@
+Simple traffic generator
+========================
+
+0. You can download the precompiled binary from dropbox:
+https://www.dropbox.com/s/fszyodvey45cd3w/main?dl=0.  copy it to your
+linux machines.  Rename it to trafgen.
+
+1. Start the server: "GOMAXPROCS=8 ./trafgen -server -addr=:9876"  (by
+default it will listen on 9876).  GOMAXPROCS=nn means you will
+multiplex connections over nn threads.
+
+2. Start the client: "GOMAXPROCS=8 ./trafgen -client
+-addr=serverhostname:9876 -t=100 -parallelism=20".  Parallelism is the
+number of TCP connections.  "t" is the duration for which each
+connection will send data.
+
+For help:
+./trafgen -help
+
+Please note that the arguments MUST have the format that as above.
+That is,  "-addr<nospace>=<nospace>value".  Any other formatting will
+not work (sad feature of golang's flag library).
+
+If you want to modify the code and compile: Install golang >= 1.4 and
+type "go build trafgen.go" to get a binary file (trafgen).
+
+golang: https://golang.org/dl/
