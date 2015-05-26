@@ -441,6 +441,7 @@ found:
 					p3 = NAPI_GRO_CB(p2)->next;
 					if (p3 != NULL) {
 						if (in_seq == seq2) {
+							printk(KERN_NOTICE "flush point 40\n");
 							*head = p3;
 							p3->next = p_next;
 							skb_gro_flush(ofo_queue, p2);
@@ -462,6 +463,7 @@ found:
 						NAPI_GRO_CB(skb)->same_flow = 1;
 
 						if (in_seq == seq2) {
+							printk(KERN_NOTICE "flush point 41\n");
 							*head = skb;
 							skb->next = p_next;
 							skb_gro_flush(ofo_queue, p2);
