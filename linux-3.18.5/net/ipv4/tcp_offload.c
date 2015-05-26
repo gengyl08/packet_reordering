@@ -187,6 +187,8 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	__u32 len2;
 	__u32 seq_next;
 	__u32 seq_next2;
+	__u32 in_seq;
+	__u32 in_seq_next;
 	unsigned int thlen;
 	__be32 flags;
 	unsigned int mss = 1;
@@ -277,11 +279,11 @@ found:
 	flush |= (__force int)(th->ack_seq ^ th2->ack_seq);
 	if (flush)
 	printk(KERN_NOTICE "flush3 %u\n", flush);
-	for (i = sizeof(*th); i < thlen; i += 4)
-		flush |= *(u32 *)((u8 *)th + i) ^
-			 *(u32 *)((u8 *)th2 + i);
-	if (flush)
-	printk(KERN_NOTICE "flush4 %u\n", flush);
+	//for (i = sizeof(*th); i < thlen; i += 4)
+	//	flush |= *(u32 *)((u8 *)th + i) ^
+	//		 *(u32 *)((u8 *)th2 + i);
+	//if (flush)
+	//printk(KERN_NOTICE "flush4 %u\n", flush);
 
 	mss = tcp_skb_mss(p);
 
@@ -322,11 +324,16 @@ found:
 	NAPI_GRO_CB(skb)->timestamp = ktime_to_ns(ktime_get());
 	p2 = NAPI_GRO_CB(p)->out_of_order_queue->next;
 	p_next = p->next;
+	in_seq_next = ofo_queue->seq_next;
 	while (p2) {
 		seq2 = NAPI_GRO_CB(p2)->seq;
 		len2 = NAPI_GRO_CB(p2)->len;
 		seq_next2 = seq2 + len2;
-		
+
+		in_seq = in_seq_next;
+		if (in_seq == seq2) {
+			in_seq_next = seq_next2;
+		}
 		//printk(KERN_NOTICE "seq %u\n", seq);
 		//printk(KERN_NOTICE "seq_next %u\n", seq_next);
 		//printk(KERN_NOTICE "seq2 %u\n", seq2);
@@ -360,7 +367,7 @@ found:
 
 			if ((err = skb_gro_merge(skb, p2))) {
 
-				if (err == -E2BIG) {
+				if (err == -E2BIG && in_seq != seq) {
 					NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 					NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
 					NAPI_GRO_CB(skb)->next = p2;
@@ -433,6 +440,11 @@ found:
 				if (err == -E2BIG) {
 					p3 = NAPI_GRO_CB(p2)->next;
 					if (p3 != NULL) {
+						if (in_seq == seq2) {
+							*head = p3;
+							p3->next = p_next;
+							skb_gro_flush(ofo_queue, p2);
+						}
 						p2 = p3;
 						continue;
 					} else {
@@ -448,6 +460,13 @@ found:
 						
 						merged = 1;
 						NAPI_GRO_CB(skb)->same_flow = 1;
+
+						if (in_seq == seq2) {
+							*head = skb;
+							skb->next = p_next;
+							skb_gro_flush(ofo_queue, p2);
+						}
+
 						break;
 					}
 				} else {
@@ -481,6 +500,12 @@ found:
 					//printk(KERN_NOTICE "merge p3\n");
 					if ((err = skb_gro_merge(p2, p3))) {
 						if (err == -E2BIG) {
+							if (in_seq == seq2) {
+								printk(KERN_NOTICE "flush point 50\n");
+								*head = p3;
+								p3->next = p_next;
+								skb_gro_flush(ofo_queue, p2);
+							}
 							return NULL;
 						} else {
 							//printk(KERN_NOTICE "merge fail\n");
@@ -556,9 +581,9 @@ out_check_final:
 	//printk(KERN_NOTICE "%u\n", len);
 	//printk(KERN_NOTICE "%u\n", mss);
 	flush = len < mss;
-	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
-					TCP_FLAG_RST | TCP_FLAG_SYN |
-					TCP_FLAG_FIN));
+	//flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
+	//				TCP_FLAG_RST | TCP_FLAG_SYN |
+	//				TCP_FLAG_FIN));
 
 	if (p && (!merged || flush)) {
 		printk(KERN_NOTICE "flush point 9\n");
