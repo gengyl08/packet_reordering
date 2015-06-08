@@ -3982,29 +3982,18 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 
 void napi_clean_tcp_ofo_queue(struct napi_struct *napi) {
-	struct sk_buff_head_gro *ofo_queue, *ofo_queue2, *ofo_queue3;
+	struct sk_buff_head_gro *ofo_queue, *ofo_queue2;
 
 	ofo_queue = napi->out_of_order_queue_list;
 	while (ofo_queue) {
-		ofo_queue2 = ofo_queue->prev_queue;
-		ofo_queue3 = ofo_queue->next_queue;
+		ofo_queue2 = ofo_queue->next_queue;
 
 		if (jiffies - ofo_queue->age > HZ) {
-
-			kfree(ofo_queue);
-
-			if (ofo_queue2) {
-				ofo_queue2->next_queue = ofo_queue3;
-			} else {
-				napi->out_of_order_queue_list = ofo_queue3;
-			}
-
-			if (ofo_queue3) {
-				ofo_queue3->prev_queue = ofo_queue2;
-			}
+			ofo_queue->age = 0;
+			ofo_queue->hash = 0;
 		}
 
-		ofo_queue = ofo_queue3;
+		ofo_queue = ofo_queue2;
 	}
 }
 
@@ -4140,16 +4129,24 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 }
 
 static struct sk_buff_head_gro* napi_get_tcp_ofo_queue(struct napi_struct *napi, struct sk_buff *skb) {
-	struct sk_buff_head_gro *ofo_queue;
+	struct sk_buff_head_gro *ofo_queue, *ofo_queue_last;
 
 	ofo_queue = napi->out_of_order_queue_list;
 	while (ofo_queue) {
 		if (ofo_queue->hash == NAPI_GRO_CB(skb)->tcp_hash)
 			return ofo_queue;
+
+		ofo_queue_last = ofo_queue;
 		ofo_queue = ofo_queue->next_queue;
 	}
 
-	return NULL;
+	ofo_queue_last->age = 0;
+	ofo_queue_last->hash = 0;
+	ofo_queue_last->qlen = 0;
+	ofo_queue_last->skb_num = 0;
+	ofo_queue_last->seq_next = 0;
+
+	return ofo_queue_last;
 }
 
 static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
@@ -4240,25 +4237,25 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (NAPI_GRO_CB(skb)->is_tcp) {
 
 		ofo_queue = napi_get_tcp_ofo_queue(napi, skb);
-		if (!ofo_queue) {
-			NAPI_GRO_CB(skb)->out_of_order_queue = (struct sk_buff_head_gro*)kmalloc(sizeof(struct sk_buff_head_gro), GFP_ATOMIC);
+		NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+		if (ofo_queue->prev_queue) {
+			ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
+		} else {
+			napi->out_of_order_queue_list = ofo_queue->next_queue;
+		}	
+
+		if (ofo_queue->next_queue) {
+			ofo_queue->next_queue->prev_queue = ofo_queue->prev_queue;
+		}
+
+		if (!ofo_queue->age) {
 			NAPI_GRO_CB(skb)->out_of_order_queue->seq_next = NAPI_GRO_CB(skb)->seq;
 		} else {
-
-			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
-
-			if (!before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
-				
-				if (ofo_queue->prev_queue) {
-					ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
-				} else {
-					napi->out_of_order_queue_list = ofo_queue->next_queue;
-				}	
-
-				if (ofo_queue->next_queue) {
-					ofo_queue->next_queue->prev_queue = ofo_queue->prev_queue;
-				}
-			} else {
+			if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
+				ofo_queue->age = jiffies;
+				ofo_queue->prev_queue = NULL;
+				ofo_queue->next_queue = napi->out_of_order_queue_list;
+				napi->out_of_order_queue_list = ofo_queue;
 				printk(KERN_NOTICE "flush point 10: %u %u\n", NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next);
 				goto normal;
 			}
@@ -4741,6 +4738,9 @@ static enum hrtimer_restart napi_flush_watchdog(struct hrtimer *timer)
 void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		    int (*poll)(struct napi_struct *, int), int weight)
 {
+	int i;
+	struct sk_buff_head_gro *ofo_queue;
+
 	INIT_LIST_HEAD(&napi->poll_list);
 
 	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -4751,6 +4751,27 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 	napi->gro_count = 0;
 	napi->gro_list = NULL;
 	napi->out_of_order_queue_list = NULL;
+
+	for (i=0; i<=MAX_GRO_SKBS; i++) {
+		ofo_queue = (struct sk_buff_head_gro*)kmalloc(sizeof(struct sk_buff_head_gro), GFP_ATOMIC);
+
+		ofo_queue->next = NULL;
+		ofo_queue->prev = NULL;
+		ofo_queue->next_queue = napi->out_of_order_queue_list;
+		ofo_queue->prev_queue = NULL;
+		ofo_queue->age = 0;
+		ofo_queue->hash = 0;
+		ofo_queue->qlen = 0;
+		ofo_queue->skb_num = 0;
+		ofo_queue->seq_next = 0;
+
+		if (napi->out_of_order_queue_list) {
+			napi->out_of_order_queue_list->prev_queue = ofo_queue;
+		}
+
+		napi->out_of_order_queue_list = ofo_queue;
+	}
+
 	napi->skb = NULL;
 	napi->poll = poll;
 	if (weight > NAPI_POLL_WEIGHT)
