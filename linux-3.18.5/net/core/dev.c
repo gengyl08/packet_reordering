@@ -3966,6 +3966,9 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 		ofo_queue->age = jiffies;
 		ofo_queue->prev_queue = NULL;
 		ofo_queue->next_queue = napi->out_of_order_queue_list;
+		if (!napi->out_of_order_queue_list) {
+			napi->out_of_order_queue_list->prev_queue = ofo_queue;
+		}
 		napi->out_of_order_queue_list = ofo_queue;
 	} else {
 		ofo_queue->next = p;
@@ -4129,7 +4132,7 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 }
 
 static struct sk_buff_head_gro* napi_get_tcp_ofo_queue(struct napi_struct *napi, struct sk_buff *skb) {
-	struct sk_buff_head_gro *ofo_queue, *ofo_queue_last;
+	struct sk_buff_head_gro *ofo_queue, *ofo_queue_last = NULL;
 
 	ofo_queue = napi->out_of_order_queue_list;
 	while (ofo_queue) {
