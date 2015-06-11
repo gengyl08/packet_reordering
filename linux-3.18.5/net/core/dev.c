@@ -4287,7 +4287,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 			ofo_queue->seq_next = NAPI_GRO_CB(skb)->seq;
 		}
 
-		if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next) {
+		if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
 			ofo_queue->age = jiffies;
 			ofo_queue->prev_queue = NULL;
 			ofo_queue->next_queue = napi->out_of_order_queue_list;
