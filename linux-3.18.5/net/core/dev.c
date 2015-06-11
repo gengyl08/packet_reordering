@@ -4245,29 +4245,30 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 			ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
 		} else {
 			napi->out_of_order_queue_list = ofo_queue->next_queue;
-		}	
+		}
 
 		if (ofo_queue->next_queue) {
 			ofo_queue->next_queue->prev_queue = ofo_queue->prev_queue;
 		}
 
 		if (!ofo_queue->age) {
-			NAPI_GRO_CB(skb)->out_of_order_queue->seq_next = NAPI_GRO_CB(skb)->seq;
+			ofo_queue->seq_next = NAPI_GRO_CB(skb)->seq;
 		} else {
 			if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
 				ofo_queue->age = jiffies;
 				ofo_queue->prev_queue = NULL;
 				ofo_queue->next_queue = napi->out_of_order_queue_list;
+				napi->out_of_order_queue_list->prev_queue = ofo_queue;
 				napi->out_of_order_queue_list = ofo_queue;
 				printk(KERN_NOTICE "flush point 10: %u %u\n", NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next);
 				goto normal;
 			}
 		}
-		NAPI_GRO_CB(skb)->out_of_order_queue->next = skb;
-		NAPI_GRO_CB(skb)->out_of_order_queue->prev = skb;
-		NAPI_GRO_CB(skb)->out_of_order_queue->qlen = skb_gro_len(skb);
-		NAPI_GRO_CB(skb)->out_of_order_queue->skb_num = 1;
-		NAPI_GRO_CB(skb)->out_of_order_queue->hash = NAPI_GRO_CB(skb)->tcp_hash;
+		ofo_queue->next = skb;
+		ofo_queue->prev = skb;
+		ofo_queue->qlen = skb_gro_len(skb);
+		ofo_queue->skb_num = 1;
+		ofo_queue->hash = NAPI_GRO_CB(skb)->tcp_hash;
 	} else {
 		NAPI_GRO_CB(skb)->out_of_order_queue = NULL;
 	}
