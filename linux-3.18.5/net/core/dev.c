@@ -4226,10 +4226,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (same_flow)
 		goto ok;
 
-	if (NAPI_GRO_CB(skb)->flush) {
-		if (!NAPI_GRO_CB(skb)->out_of_order_queue) {
-			NAPI_GRO_CB(skb)->out_of_order_queue = napi_get_tcp_ofo_queue(napi, skb);
-		}
+	if (NAPI_GRO_CB(skb)->flush && !NAPI_GRO_CB(skb)->is_tcp) {
 		goto normal;
 	}
 
@@ -4253,19 +4250,20 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 		if (!ofo_queue->age) {
 			ofo_queue->seq_next = NAPI_GRO_CB(skb)->seq;
-		} else {
-			if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
-				ofo_queue->age = jiffies;
-				ofo_queue->prev_queue = NULL;
-				ofo_queue->next_queue = napi->out_of_order_queue_list;
-				if (!napi->out_of_order_queue_list) {
-					napi->out_of_order_queue_list->prev_queue = ofo_queue;
-				}
-				napi->out_of_order_queue_list = ofo_queue;
-				printk(KERN_NOTICE "flush point 10: %u %u\n", NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next);
-				goto normal;
-			}
 		}
+
+		if (NAPI_GRO_CB(skb)->flush || before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
+			ofo_queue->age = jiffies;
+			ofo_queue->prev_queue = NULL;
+			ofo_queue->next_queue = napi->out_of_order_queue_list;
+			if (!napi->out_of_order_queue_list) {
+				napi->out_of_order_queue_list->prev_queue = ofo_queue;
+			}
+			napi->out_of_order_queue_list = ofo_queue;
+			printk(KERN_NOTICE "flush point 10: %u %u\n", NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next);
+			goto normal;
+		}
+
 		ofo_queue->next = skb;
 		ofo_queue->prev = skb;
 		ofo_queue->qlen = skb_gro_len(skb);
