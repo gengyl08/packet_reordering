@@ -4143,11 +4143,13 @@ static struct sk_buff_head_gro* napi_get_tcp_ofo_queue(struct napi_struct *napi,
 		ofo_queue = ofo_queue->next_queue;
 	}
 
-	ofo_queue_last->age = 0;
-	ofo_queue_last->hash = 0;
-	ofo_queue_last->qlen = 0;
-	ofo_queue_last->skb_num = 0;
-	ofo_queue_last->seq_next = 0;
+	if (ofo_queue_last) {
+		ofo_queue_last->age = 0;
+		ofo_queue_last->hash = 0;
+		ofo_queue_last->qlen = 0;
+		ofo_queue_last->skb_num = 0;
+		ofo_queue_last->seq_next = 0;
+	}
 
 	return ofo_queue_last;
 }
@@ -4237,6 +4239,11 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	if (NAPI_GRO_CB(skb)->is_tcp) {
 
 		ofo_queue = napi_get_tcp_ofo_queue(napi, skb);
+
+		if (!ofo_queue) {
+			goto normal;
+		}
+
 		NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 		if (ofo_queue->prev_queue) {
 			ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
