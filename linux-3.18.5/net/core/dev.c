@@ -4232,9 +4232,9 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		if (NAPI_GRO_CB(skb)->is_tcp && !NAPI_GRO_CB(skb)->out_of_order_queue) {
 			ofo_queue = napi_get_tcp_ofo_queue(napi, skb);
 
-			if (!ofo_queue) {
-				goto normal;
-			}
+			//if (!ofo_queue) {
+			//	goto normal;
+			//}
 
 			NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 			if (ofo_queue->prev_queue) {
@@ -4248,12 +4248,13 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 			}
 
 			ofo_queue->age = jiffies;
+			ofo_queue->hash = NAPI_GRO_CB(skb)->tcp_hash;
 			ofo_queue->prev_queue = NULL;
 			ofo_queue->next_queue = napi->out_of_order_queue_list;
 			if (!napi->out_of_order_queue_list) {
 				napi->out_of_order_queue_list->prev_queue = ofo_queue;
 			}
-			
+
 			napi->out_of_order_queue_list = ofo_queue;
 		}
 		goto normal;
@@ -4267,9 +4268,9 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 		ofo_queue = napi_get_tcp_ofo_queue(napi, skb);
 
-		if (!ofo_queue) {
-			goto normal;
-		}
+		//if (!ofo_queue) {
+		//	goto normal;
+		//}
 
 		NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 		if (ofo_queue->prev_queue) {
