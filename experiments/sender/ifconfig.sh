@@ -6,6 +6,8 @@ ifconfig eth5 192.168.5.1 mask 255.255.255.0
 ifconfig eth6 192.168.6.1 mask 255.255.255.0
 ifconfig eth7 192.168.7.1 mask 255.255.255.0
 
+service irqbalance stop
+
 intr0=$(cat /proc/interrupts | grep eth0-rx-0 | grep -oP '[0-9]+' | head -n 1)
 intr1=$(cat /proc/interrupts | grep eth0-rx-1 | grep -oP '[0-9]+' | head -n 1)
 intr2=$(cat /proc/interrupts | grep eth0-rx-2 | grep -oP '[0-9]+' | head -n 1)
