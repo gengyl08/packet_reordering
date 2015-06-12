@@ -6,11 +6,16 @@ ifconfig eth5 192.168.5.2 mask 255.255.255.0
 ifconfig eth6 192.168.6.2 mask 255.255.255.0
 ifconfig eth7 192.168.7.2 mask 255.255.255.0
 
-intr=$(cat /proc/interrupts | grep -m 1 eth0 | grep -oP '[0-9]+' | head -n 1)
+intr0=$(cat /proc/interrupts | grep eth0-rx-0 | grep -oP '[0-9]+' | head -n 1)
+intr1=$(cat /proc/interrupts | grep eth0-rx-1 | grep -oP '[0-9]+' | head -n 1)
+intr2=$(cat /proc/interrupts | grep eth0-rx-2 | grep -oP '[0-9]+' | head -n 1)
+intr3=$(cat /proc/interrupts | grep eth0-rx-3 | grep -oP '[0-9]+' | head -n 1)
+intr4=$(cat /proc/interrupts | grep eth0-tx-0 | grep -oP '[0-9]+' | head -n 1)
 
-echo 000001 > /proc/irq/$intr/smp_affinity
-echo 000002 > /proc/irq/$[$intr+1]/smp_affinity
-echo 000004 > /proc/irq/$[$intr+2]/smp_affinity
-echo 000008 > /proc/irq/$[$intr+3]/smp_affinity
-echo 000010 > /proc/irq/$[$intr+4]/smp_affinity
+echo 000001 > /proc/irq/$intr0/smp_affinity
+echo 000002 > /proc/irq/$intr1/smp_affinity
+echo 000004 > /proc/irq/$intr2/smp_affinity
+echo 000008 > /proc/irq/$intr3/smp_affinity
+echo 000010 > /proc/irq/$intr4/smp_affinity
+
 sysctl -w net.ipv4.tcp_congestion_control=reno
