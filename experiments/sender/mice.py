@@ -1,7 +1,9 @@
 import socket
 import threading
-import SocketServer
-import time
+import argparse
+
+parser = argparse.ArgumentParser(description='Argument Parser')
+parser.add_argument('--num', help='Number of concurrent mice flows', default=10, type=int)
 
 def client(ip, port, message):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -17,13 +19,10 @@ def client(ip, port, message):
 
 if __name__ == "__main__":
 
+    args = parser.parse_args()
+
     ip, port = "192.168.0.2", 9999
 
-    t0 = threading.Thread(target=client, args=(ip, port, "Hello World 0",))
-    t1 = threading.Thread(target=client, args=(ip, port, "Hello World 1",))
-
-    t0.start()
-    t1.start()
-
-    t0.join()
-    t1.join()
+    while (1):
+        if threading.active_count() < args.num:
+            threading.Thread(target=client, args=(ip, port, "Hello World",)).start()
