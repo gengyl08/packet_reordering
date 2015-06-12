@@ -11,7 +11,6 @@ def client(ip, port, message):
     try:
         sock.sendall(message)
         response = sock.recv(1024)
-        print "Received: {}".format(response)
     finally:
         sock.close()
 
