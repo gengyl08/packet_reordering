@@ -10,8 +10,6 @@ def client(ip, port, message):
     sock.connect((ip, port))
     try:
         sock.sendall(message)
-        time.sleep(2)
-        sock.sendall(message)
         response = sock.recv(1024)
         print "Received: {}".format(response)
     finally:
