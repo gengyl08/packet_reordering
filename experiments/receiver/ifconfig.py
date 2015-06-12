@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import subprocess
 
 subprocess.call('ifconfig eth0 192.168.0.1 mask 255.255.255.0'.split())
