@@ -4223,8 +4223,12 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		napi->gro_count--;
 	}
 
-	if (same_flow)
-		goto ok;
+	if (same_flow) {
+		if (NAPI_GRO_CB(skb)->free)
+			goto ok;
+		else
+			goto pull;
+	}
 
 	if (NAPI_GRO_CB(skb)->flush) {
 		if (NAPI_GRO_CB(skb)->is_tcp && !NAPI_GRO_CB(skb)->out_of_order_queue) {
