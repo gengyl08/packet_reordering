@@ -4730,11 +4730,16 @@ void napi_complete_done(struct napi_struct *n, int work_done)
 		napi_gro_flush(n, false, 0);
 	}
 
-	napi_gro_flush(n, false, n->dev->gro_ofo_timeout);
-	if (n->gro_list) {
-		hrtimer_start(&n->timer, ns_to_ktime(n->dev->gro_flush_timeout),
-			HRTIMER_MODE_REL_PINNED);
+	if (n->dev->gro_flush_timeout) {
+		napi_gro_flush(n, false, n->dev->gro_ofo_timeout);
+		if (n->gro_list) {
+			hrtimer_start(&n->timer, ns_to_ktime(n->dev->gro_flush_timeout),
+				HRTIMER_MODE_REL_PINNED);
+		}
+	} else {
+		napi_gro_flush(n, false, 0);
 	}
+
 	if (likely(list_empty(&n->poll_list))) {
 		WARN_ON_ONCE(!test_and_clear_bit(NAPI_STATE_SCHED, &n->state));
 	} else {
