@@ -352,23 +352,6 @@ static ssize_t gro_flush_timeout_store(struct device *dev,
 }
 NETDEVICE_SHOW_RW(gro_flush_timeout, fmt_ulong);
 
-static int change_gro_ofo_timeout(struct net_device *dev, unsigned long val)
-{
-	dev->gro_ofo_timeout = val;
-	return 0;
-}
-
-static ssize_t gro_ofo_timeout_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t len)
-{
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	return netdev_store(dev, attr, buf, len, change_gro_ofo_timeout);
-}
-NETDEVICE_SHOW_RW(gro_ofo_timeout, fmt_ulong);
-
 static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t len)
 {
@@ -511,7 +494,6 @@ static struct attribute *net_class_attrs[] = {
 	&dev_attr_flags.attr,
 	&dev_attr_tx_queue_len.attr,
 	&dev_attr_gro_flush_timeout.attr,
-	&dev_attr_gro_ofo_timeout.attr,
 	&dev_attr_phys_port_id.attr,
 	&dev_attr_phys_port_name.attr,
 	&dev_attr_phys_switch_id.attr,

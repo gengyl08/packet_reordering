@@ -511,7 +511,7 @@ static int tse_poll(struct napi_struct *napi, int budget)
 
 	if (rxcomplete < budget) {
 
-		napi_gro_flush(napi, false, 0);
+		napi_gro_flush(napi, false);
 		__napi_complete(napi);
 
 		netdev_dbg(priv->dev,
