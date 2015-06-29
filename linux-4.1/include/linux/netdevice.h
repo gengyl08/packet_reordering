@@ -320,6 +320,8 @@ struct napi_struct {
 	struct list_head	dev_list;
 	struct hlist_node	napi_hash_node;
 	unsigned int		napi_id;
+
+	struct sk_buff_head_gro *out_of_order_queue_list;
 };
 
 enum {
@@ -1649,6 +1651,7 @@ struct net_device {
 #endif
 
 	unsigned long		gro_flush_timeout;
+	unsigned long		gro_ofo_timeout;
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 
@@ -1962,7 +1965,25 @@ struct napi_gro_cb {
 	__wsum	csum;
 
 	/* used in skb_gro_receive() slow path */
-	struct sk_buff *last;
+	//struct sk_buff *last;
+
+        /* out of order queue for tcp */
+        struct sk_buff_head_gro *out_of_order_queue;
+
+        /* the prev/next skb in the out of order queue */
+        struct sk_buff *prev;
+        struct sk_buff *next;
+
+        /* seq and len of tcp data*/
+        __u32 seq;
+        __u32 len;
+
+        /* if this skb is a TCP packet */
+        bool is_tcp;
+        __u32 tcp_hash;
+
+        /* similar to age, for tcp reordering only */
+        u64 timestamp;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
@@ -2203,7 +2224,13 @@ struct net_device *__dev_get_by_index(struct net *net, int ifindex);
 struct net_device *dev_get_by_index_rcu(struct net *net, int ifindex);
 int netdev_get_name(struct net *net, char *name, int ifindex);
 int dev_restart(struct net_device *dev);
-int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb);
+//int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb);
+
+int napi_gro_complete(struct sk_buff *skb);
+
+int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb);
+void skb_gro_free(struct sk_buff *skb);
+void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb);
 
 static inline unsigned int skb_gro_offset(const struct sk_buff *skb)
 {
@@ -2938,12 +2965,13 @@ static inline void dev_consume_skb_any(struct sk_buff *skb)
 int netif_rx(struct sk_buff *skb);
 int netif_rx_ni(struct sk_buff *skb);
 int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb);
+int netif_receive_skb_internal(struct sk_buff *skb);
 static inline int netif_receive_skb(struct sk_buff *skb)
 {
 	return netif_receive_skb_sk(skb->sk, skb);
 }
 gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb);
-void napi_gro_flush(struct napi_struct *napi, bool flush_old);
+void napi_gro_flush(struct napi_struct *napi, bool flush_old, u64 timeout);
 struct sk_buff *napi_get_frags(struct napi_struct *napi);
 gro_result_t napi_gro_frags(struct napi_struct *napi);
 struct packet_offload *gro_find_receive_by_type(__be16 type);

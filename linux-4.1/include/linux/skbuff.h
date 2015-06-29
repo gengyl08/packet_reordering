@@ -189,6 +189,20 @@ struct sk_buff_head {
 	spinlock_t	lock;
 };
 
+struct sk_buff_head_gro {
+        /* These two members must be first. */
+        struct sk_buff                          *next;
+        struct sk_buff                          *prev;
+        struct sk_buff_head_gro         *next_queue;
+        struct sk_buff_head_gro         *prev_queue;
+
+        unsigned long                           age;
+        __u32                                           hash;
+        __u32                                           qlen;
+        __u32                                           skb_num;
+        __u32                                           seq_next;
+};
+
 struct sk_buff;
 
 /* To allow 64K frame to be packed as single skb without frag_list we
@@ -539,7 +553,7 @@ struct sk_buff {
 	 * want to keep them across layers you have to do a skb_clone()
 	 * first. This is owned by whoever has the skb queued ATM.
 	 */
-	char			cb[48] __aligned(8);
+	char			cb[128] __aligned(8);
 
 	unsigned long		_skb_refdst;
 	void			(*destructor)(struct sk_buff *skb);

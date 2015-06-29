@@ -118,6 +118,7 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <net/ip.h>
+#include <net/tcp.h>
 #include <net/mpls.h>
 #include <linux/ipv6.h>
 #include <linux/in.h>
@@ -3821,7 +3822,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	return ret;
 }
 
-static int netif_receive_skb_internal(struct sk_buff *skb)
+int netif_receive_skb_internal(struct sk_buff *skb)
 {
 	net_timestamp_check(netdev_tstamp_prequeue, skb);
 
@@ -3847,6 +3848,7 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 #endif
 	return __netif_receive_skb(skb);
 }
+EXPORT_SYMBOL(netif_receive_skb_internal);
 
 /**
  *	netif_receive_skb - process receive buffer from network
@@ -3899,7 +3901,7 @@ static void flush_backlog(void *arg)
 	}
 }
 
-static int napi_gro_complete(struct sk_buff *skb)
+int napi_gro_complete(struct sk_buff *skb)
 {
 	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
@@ -3933,32 +3935,162 @@ out:
 	return netif_receive_skb_internal(skb);
 }
 
+static __u32 max_seq(__u32 seq1, __u32 seq2) {
+        if (before(seq1, seq2)) {
+                return seq2;
+        } else {
+                return seq1;
+        }
+}
+
+static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff *skb, u64 timeout) {
+
+        struct sk_buff_head_gro *ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
+        struct sk_buff *p = ofo_queue->next, *p2, *pl = ofo_queue->prev, *skb_last = NULL;
+        unsigned qlen = 0, skb_num = 0;
+        u64 timestamp = ktime_to_ns(ktime_get());
+
+        if (ofo_queue == NULL) {
+                napi_gro_complete(skb);
+                return NULL;
+        }
+
+        if (timeout != 0) {
+                while (pl != NULL) {
+                        if (timestamp - NAPI_GRO_CB(pl)->timestamp < timeout) {
+                                skb_last = pl;
+                                pl = NAPI_GRO_CB(pl)->prev;
+                        } else {
+                                printk(KERN_NOTICE "age: %u\n", timestamp - NAPI_GRO_CB(pl)->timestamp);
+                                break;
+                        }
+                }
+        }
+
+        while (p != skb_last) {
+                p2 = NAPI_GRO_CB(p)->next;
+                if (p2)
+                        NAPI_GRO_CB(p2)->prev = NULL;
+
+                qlen += NAPI_GRO_CB(p)->len;
+                skb_num++;
+
+                ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
+                ofo_queue->skb_num--;
+                ofo_queue->seq_next = max_seq(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len);
+                napi_gro_complete(p);
+                p = p2;
+        }
+
+        while (p != NULL && !before(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq)) {
+                p2 = NAPI_GRO_CB(p)->next;
+                if (p2)
+                        NAPI_GRO_CB(p2)->prev = NULL;
+
+                qlen += NAPI_GRO_CB(p)->len;
+                skb_num++;
+
+                ofo_queue->qlen -= NAPI_GRO_CB(p)->len;
+                ofo_queue->skb_num--;
+                ofo_queue->seq_next = max_seq(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq + NAPI_GRO_CB(p)->len);
+                napi_gro_complete(p);
+                p = p2;
+                printk(KERN_NOTICE "flush in sequence skb\n");
+        }
+
+        if (p == NULL) {
+                ofo_queue->age = jiffies;
+                ofo_queue->prev_queue = NULL;
+                ofo_queue->next_queue = napi->out_of_order_queue_list;
+                if (napi->out_of_order_queue_list) {
+                        napi->out_of_order_queue_list->prev_queue = ofo_queue;
+                }
+                napi->out_of_order_queue_list = ofo_queue;
+        } else {
+                ofo_queue->next = p;
+        }
+
+        if (timeout != 0) {
+                printk(KERN_NOTICE "napi_gro_flush qlen %u skb %u\n", qlen, skb_num);
+        }
+
+        //printk(KERN_ERR "seq_next %u\n", ofo_queue->seq_next);
+
+        return p;
+}
+
+void napi_clean_tcp_ofo_queue(struct napi_struct *napi) {
+        struct sk_buff_head_gro *ofo_queue, *ofo_queue2;
+
+        ofo_queue = napi->out_of_order_queue_list;
+        while (ofo_queue) {
+                ofo_queue2 = ofo_queue->next_queue;
+
+                if (jiffies - ofo_queue->age > HZ) {
+                        ofo_queue->age = 0;
+                        ofo_queue->hash = 0;
+			ofo_queue->seq_next = 0;
+                }
+
+                ofo_queue = ofo_queue2;
+        }
+}
+
 /* napi->gro_list contains packets ordered by age.
  * youngest packets at the head of it.
  * Complete skbs in reverse order to reduce latencies.
  */
-void napi_gro_flush(struct napi_struct *napi, bool flush_old)
+void napi_gro_flush(struct napi_struct *napi, bool flush_old, u64 timeout)
 {
-	struct sk_buff *skb, *prev = NULL;
+        struct sk_buff *skb, *prev = NULL, *gro_list_old = napi->gro_list, *p, *skb_new;
 
-	/* scan list and build reverse chain */
-	for (skb = napi->gro_list; skb != NULL; skb = skb->next) {
-		skb->prev = prev;
-		prev = skb;
-	}
+        /* scan list and build reverse chain */ 
+        for (skb = napi->gro_list; skb != NULL; skb = skb->next) {
+                skb->prev = prev;
+                prev = skb;
+        }
 
-	for (skb = prev; skb; skb = prev) {
-		skb->next = NULL;
+        napi->gro_list = NULL;
 
-		if (flush_old && NAPI_GRO_CB(skb)->age == jiffies)
-			return;
+        for (skb = prev; skb; skb = prev) {
+                //skb->next = NULL;
 
-		prev = skb->prev;
-		napi_gro_complete(skb);
-		napi->gro_count--;
-	}
+                if (flush_old && NAPI_GRO_CB(skb)->age == jiffies) {
+                        napi->gro_list = gro_list_old;
+                        return;
+                }
 
-	napi->gro_list = NULL;
+                prev = skb->prev;
+
+                if (!NAPI_GRO_CB(skb)->out_of_order_queue) {
+
+                        if (prev != NULL) {
+                                prev->next = skb->next;
+                        }
+
+                        skb->prev = NULL;
+                        skb->next = NULL;
+                        dev_gro_complete(napi, skb, 0);
+                        napi->gro_count--;
+                } else {
+
+                        p = skb->next;
+                        skb_new = dev_gro_complete(napi, skb, timeout);
+                        if (!skb_new) {
+                                if (prev != NULL) {
+                                        prev->next = p;
+                                }
+
+                                napi->gro_count--;
+                        } else {
+                                if (prev != NULL) {
+                                        prev->next = skb_new;
+                                }
+                                skb_new->next = p;
+                                napi->gro_list = skb_new;
+                        }
+                }
+        }
 }
 EXPORT_SYMBOL(napi_gro_flush);
 
@@ -4029,112 +4161,230 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 	}
 }
 
+static struct sk_buff_head_gro* napi_get_tcp_ofo_queue(struct napi_struct *napi, struct sk_buff *skb) {
+        struct sk_buff_head_gro *ofo_queue, *ofo_queue_last = NULL;
+
+        ofo_queue = napi->out_of_order_queue_list;
+        while (ofo_queue) {
+                if (ofo_queue->hash == NAPI_GRO_CB(skb)->tcp_hash)
+                        return ofo_queue;
+
+                ofo_queue_last = ofo_queue;
+                ofo_queue = ofo_queue->next_queue;
+        }
+
+        ofo_queue_last->age = 0;
+        ofo_queue_last->hash = 0;
+        ofo_queue_last->qlen = 0;
+        ofo_queue_last->skb_num = 0;
+        ofo_queue_last->seq_next = 0;
+
+        return ofo_queue_last;
+}
+
 static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
-	struct sk_buff **pp = NULL;
-	struct packet_offload *ptype;
-	__be16 type = skb->protocol;
-	struct list_head *head = &offload_base;
-	int same_flow;
-	enum gro_result ret;
-	int grow;
+        struct sk_buff **pp = NULL;
+        struct packet_offload *ptype;
+        __be16 type = skb->protocol;
+        struct list_head *head = &offload_base;
+        int same_flow;
+        enum gro_result ret;
+        int grow;
+        struct sk_buff_head_gro *ofo_queue;
 
-	if (!(skb->dev->features & NETIF_F_GRO))
-		goto normal;
+        NAPI_GRO_CB(skb)->out_of_order_queue = NULL;
 
-	if (skb_is_gso(skb) || skb_has_frag_list(skb) || skb->csum_bad)
-		goto normal;
+        if (!(skb->dev->features & NETIF_F_GRO))
+                goto normal;
 
-	gro_list_prepare(napi, skb);
+        if (skb_is_gso(skb) || skb_has_frag_list(skb) || skb->csum_bad)
+                goto normal;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(ptype, head, list) {
-		if (ptype->type != type || !ptype->callbacks.gro_receive)
-			continue;
+        gro_list_prepare(napi, skb);
 
-		skb_set_network_header(skb, skb_gro_offset(skb));
-		skb_reset_mac_len(skb);
-		NAPI_GRO_CB(skb)->same_flow = 0;
-		NAPI_GRO_CB(skb)->flush = 0;
-		NAPI_GRO_CB(skb)->free = 0;
-		NAPI_GRO_CB(skb)->udp_mark = 0;
-		NAPI_GRO_CB(skb)->gro_remcsum_start = 0;
+        rcu_read_lock();
+        list_for_each_entry_rcu(ptype, head, list) {
+                if (ptype->type != type || !ptype->callbacks.gro_receive)
+                        continue;
 
-		/* Setup for GRO checksum validation */
-		switch (skb->ip_summed) {
-		case CHECKSUM_COMPLETE:
-			NAPI_GRO_CB(skb)->csum = skb->csum;
-			NAPI_GRO_CB(skb)->csum_valid = 1;
-			NAPI_GRO_CB(skb)->csum_cnt = 0;
-			break;
-		case CHECKSUM_UNNECESSARY:
-			NAPI_GRO_CB(skb)->csum_cnt = skb->csum_level + 1;
-			NAPI_GRO_CB(skb)->csum_valid = 0;
-			break;
-		default:
-			NAPI_GRO_CB(skb)->csum_cnt = 0;
-			NAPI_GRO_CB(skb)->csum_valid = 0;
-		}
+                skb_set_network_header(skb, skb_gro_offset(skb));
+                skb_reset_mac_len(skb);
+                NAPI_GRO_CB(skb)->same_flow = 0;
+                NAPI_GRO_CB(skb)->flush = 0;
+                NAPI_GRO_CB(skb)->free = 0;
+                NAPI_GRO_CB(skb)->udp_mark = 0;
+                NAPI_GRO_CB(skb)->gro_remcsum_start = 0;
+                NAPI_GRO_CB(skb)->is_tcp = false;
 
-		pp = ptype->callbacks.gro_receive(&napi->gro_list, skb);
-		break;
-	}
-	rcu_read_unlock();
+                /* Setup for GRO checksum validation */
+                switch (skb->ip_summed) {
+                case CHECKSUM_COMPLETE:
+                        NAPI_GRO_CB(skb)->csum = skb->csum;
+                        NAPI_GRO_CB(skb)->csum_valid = 1;
+                        NAPI_GRO_CB(skb)->csum_cnt = 0;
+                        break;
+                case CHECKSUM_UNNECESSARY:
+                        NAPI_GRO_CB(skb)->csum_cnt = skb->csum_level + 1;
+                        NAPI_GRO_CB(skb)->csum_valid = 0;
+                        break;
+                default:
+                        NAPI_GRO_CB(skb)->csum_cnt = 0;
+                        NAPI_GRO_CB(skb)->csum_valid = 0;
+                }
 
-	if (&ptype->list == head)
-		goto normal;
+                pp = ptype->callbacks.gro_receive(&napi->gro_list, skb);
+                break;
+        }
+        rcu_read_unlock();
 
-	same_flow = NAPI_GRO_CB(skb)->same_flow;
-	ret = NAPI_GRO_CB(skb)->free ? GRO_MERGED_FREE : GRO_MERGED;
+        if (&ptype->list == head)
+                goto normal;
 
-	if (pp) {
-		struct sk_buff *nskb = *pp;
+        same_flow = NAPI_GRO_CB(skb)->same_flow;
+        ret = NAPI_GRO_CB(skb)->free ? GRO_MERGED_FREE : GRO_MERGED;
 
-		*pp = nskb->next;
-		nskb->next = NULL;
-		napi_gro_complete(nskb);
-		napi->gro_count--;
-	}
+        if (pp) {
+                struct sk_buff *nskb = *pp;
 
-	if (same_flow)
-		goto ok;
+                *pp = nskb->next;
+                nskb->next = NULL;
+                printk(KERN_NOTICE "dev_gro_receive qlen %u skb %u\n", NAPI_GRO_CB(nskb)->out_of_order_queue->qlen, NAPI_GRO_CB(nskb)->out_of_order_queue->skb_num);
+                dev_gro_complete(napi, nskb, 0);
+                napi->gro_count--;
+        }
 
-	if (NAPI_GRO_CB(skb)->flush)
-		goto normal;
+        if (same_flow) {
+                if (NAPI_GRO_CB(skb)->free)
+                        goto ok;
+                else
+                        goto pull;
+        }
 
-	if (unlikely(napi->gro_count >= MAX_GRO_SKBS)) {
-		struct sk_buff *nskb = napi->gro_list;
+        if (NAPI_GRO_CB(skb)->flush) {
+                if (NAPI_GRO_CB(skb)->is_tcp && !NAPI_GRO_CB(skb)->out_of_order_queue) {
+                        ofo_queue = napi_get_tcp_ofo_queue(napi, skb);
 
-		/* locate the end of the list to select the 'oldest' flow */
-		while (nskb->next) {
-			pp = &nskb->next;
-			nskb = *pp;
-		}
-		*pp = NULL;
-		nskb->next = NULL;
-		napi_gro_complete(nskb);
-	} else {
-		napi->gro_count++;
-	}
-	NAPI_GRO_CB(skb)->count = 1;
-	NAPI_GRO_CB(skb)->age = jiffies;
-	NAPI_GRO_CB(skb)->last = skb;
-	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
-	skb->next = napi->gro_list;
-	napi->gro_list = skb;
-	ret = GRO_HELD;
+                        //if (!ofo_queue) {
+                        //      goto normal;
+                        //}
+
+                        NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+                        if (ofo_queue->prev_queue) {
+                                ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
+                        } else {
+                                napi->out_of_order_queue_list = ofo_queue->next_queue;
+                        }
+
+                        if (ofo_queue->next_queue) {
+                                ofo_queue->next_queue->prev_queue = ofo_queue->prev_queue;
+                        }
+
+                        if (!ofo_queue->age) {
+                                ofo_queue->seq_next = NAPI_GRO_CB(skb)->seq;
+                        }
+
+                        ofo_queue->age = jiffies;
+                        ofo_queue->hash = NAPI_GRO_CB(skb)->tcp_hash;
+                        ofo_queue->prev_queue = NULL;
+                        ofo_queue->next_queue = napi->out_of_order_queue_list;
+                        if (napi->out_of_order_queue_list) {
+                                napi->out_of_order_queue_list->prev_queue = ofo_queue;
+                        }
+
+                        napi->out_of_order_queue_list = ofo_queue;
+                }
+                goto normal;
+        }
+
+        NAPI_GRO_CB(skb)->count = 1;
+        NAPI_GRO_CB(skb)->age = jiffies;
+        NAPI_GRO_CB(skb)->timestamp = ktime_to_ns(ktime_get());
+        //NAPI_GRO_CB(skb)->last = skb;
+        if (NAPI_GRO_CB(skb)->is_tcp) {
+
+                ofo_queue = napi_get_tcp_ofo_queue(napi, skb);
+
+                //if (!ofo_queue) {
+                //      goto normal;
+                //}
+
+                NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
+                if (ofo_queue->prev_queue) {
+                        ofo_queue->prev_queue->next_queue = ofo_queue->next_queue;
+                } else {
+                        napi->out_of_order_queue_list = ofo_queue->next_queue;
+                }
+
+                if (ofo_queue->next_queue) {
+                        ofo_queue->next_queue->prev_queue = ofo_queue->prev_queue;
+                }
+
+                if (!ofo_queue->age) {
+                        ofo_queue->seq_next = NAPI_GRO_CB(skb)->seq;
+                }
+
+                if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
+                        ofo_queue->age = jiffies;
+                        ofo_queue->prev_queue = NULL;
+                        ofo_queue->next_queue = napi->out_of_order_queue_list;
+                        if (napi->out_of_order_queue_list) {
+                                napi->out_of_order_queue_list->prev_queue = ofo_queue;
+                        }
+                        napi->out_of_order_queue_list = ofo_queue;
+                        printk(KERN_NOTICE "flush point 10: %u %u\n", NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next);
+                        goto normal;
+                }
+
+                ofo_queue->next = skb;
+                ofo_queue->prev = skb;
+                ofo_queue->qlen = skb_gro_len(skb);
+                ofo_queue->skb_num = 1;
+                ofo_queue->hash = NAPI_GRO_CB(skb)->tcp_hash;
+        } else {
+                NAPI_GRO_CB(skb)->out_of_order_queue = NULL;
+        }
+        NAPI_GRO_CB(skb)->prev = NULL;
+        NAPI_GRO_CB(skb)->next = NULL;
+        skb_shinfo(skb)->gso_size = skb_gro_len(skb);
+        skb->next = napi->gro_list;
+        napi->gro_list = skb;
+
+        if (unlikely(napi->gro_count >= MAX_GRO_SKBS)) {
+                struct sk_buff *nskb = napi->gro_list;
+
+                /* locate the end of the list to select the 'oldest' flow */
+                while (nskb->next) {
+                        pp = &nskb->next;
+                        nskb = *pp;
+                }
+                *pp = NULL;
+                nskb->next = NULL;
+                dev_gro_complete(napi, nskb, 0);
+        } else {
+                napi->gro_count++;
+        }
+
+        ret = GRO_HELD;
 
 pull:
-	grow = skb_gro_offset(skb) - skb_headlen(skb);
-	if (grow > 0)
-		gro_pull_from_frag0(skb, grow);
+        grow = skb_gro_offset(skb) - skb_headlen(skb);
+        if (grow > 0)
+                gro_pull_from_frag0(skb, grow);
 ok:
-	return ret;
+        return ret;
 
 normal:
-	ret = GRO_NORMAL;
-	goto pull;
+        ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
+        if (ofo_queue) {
+                ofo_queue->seq_next = max_seq(ofo_queue->seq_next, NAPI_GRO_CB(skb)->seq + NAPI_GRO_CB(skb)->len);
+        }
+        printk(KERN_NOTICE "normal qlen %u skb %u\n", NAPI_GRO_CB(skb)->len, 1);
+        ret = GRO_NORMAL;
+        goto pull;
 }
+
+
 
 struct packet_offload *gro_find_receive_by_type(__be16 type)
 {
@@ -4215,6 +4465,7 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 	skb->skb_iif = 0;
 	skb->encapsulation = 0;
 	skb_shinfo(skb)->gso_type = 0;
+	skb_shinfo(skb)->gso_size = 0;
 	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 
 	napi->skb = skb;
@@ -4475,18 +4726,20 @@ void napi_complete_done(struct napi_struct *n, int work_done)
 	if (unlikely(test_bit(NAPI_STATE_NPSVC, &n->state)))
 		return;
 
-	if (n->gro_list) {
-		unsigned long timeout = 0;
-
-		if (work_done)
-			timeout = n->dev->gro_flush_timeout;
-
-		if (timeout)
-			hrtimer_start(&n->timer, ns_to_ktime(timeout),
-				      HRTIMER_MODE_REL_PINNED);
-		else
-			napi_gro_flush(n, false);
+	if (unlikely(napi_disable_pending(n))) {
+		napi_gro_flush(n, false, 0);
 	}
+
+	if (n->dev->gro_flush_timeout) {
+		napi_gro_flush(n, false, n->dev->gro_ofo_timeout);
+		if (n->gro_list) {
+			hrtimer_start(&n->timer, ns_to_ktime(n->dev->gro_flush_timeout),
+				HRTIMER_MODE_REL_PINNED);
+		}
+	} else {
+		napi_gro_flush(n, false, 0);
+	}
+
 	if (likely(list_empty(&n->poll_list))) {
 		WARN_ON_ONCE(!test_and_clear_bit(NAPI_STATE_SCHED, &n->state));
 	} else {
@@ -4564,11 +4817,36 @@ static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
 void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		    int (*poll)(struct napi_struct *, int), int weight)
 {
+        int i;
+        struct sk_buff_head_gro *ofo_queue;
+
 	INIT_LIST_HEAD(&napi->poll_list);
 	hrtimer_init(&napi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
 	napi->timer.function = napi_watchdog;
 	napi->gro_count = 0;
 	napi->gro_list = NULL;
+        napi->out_of_order_queue_list = NULL;
+
+        for (i=0; i<=MAX_GRO_SKBS; i++) {
+                ofo_queue = (struct sk_buff_head_gro*)kmalloc(sizeof(struct sk_buff_head_gro), GFP_ATOMIC);
+
+                ofo_queue->next = NULL;
+                ofo_queue->prev = NULL;
+                ofo_queue->next_queue = napi->out_of_order_queue_list;
+                ofo_queue->prev_queue = NULL;
+                ofo_queue->age = 0;
+                ofo_queue->hash = 0;
+                ofo_queue->qlen = 0;
+                ofo_queue->skb_num = 0;
+                ofo_queue->seq_next = 0;
+
+                if (napi->out_of_order_queue_list) {
+                        napi->out_of_order_queue_list->prev_queue = ofo_queue;
+                }
+
+                napi->out_of_order_queue_list = ofo_queue;
+        }
+
 	napi->skb = NULL;
 	napi->poll = poll;
 	if (weight > NAPI_POLL_WEIGHT)
@@ -4601,12 +4879,39 @@ EXPORT_SYMBOL(napi_disable);
 
 void netif_napi_del(struct napi_struct *napi)
 {
+        struct sk_buff_head_gro *ofo_queue, *ofo_queue2;
+        struct sk_buff *skb, *skb2, *skb3, *skb4;
+
 	list_del_init(&napi->dev_list);
 	napi_free_frags(napi);
 
-	kfree_skb_list(napi->gro_list);
+        skb = napi->gro_list;
+        while (skb) {
+                skb2 = skb->next;
+                ofo_queue = NAPI_GRO_CB(skb)->out_of_order_queue;
+                if (ofo_queue) {
+                        skb3 = ofo_queue->next;
+                        while (skb3) { 
+                                skb4 = NAPI_GRO_CB(skb3)->next;
+                                kfree_skb(skb3);
+                                skb3 = skb4;
+                        }
+                        kfree(ofo_queue);
+                } else {
+                        kfree(skb);
+                }
+                skb = skb2;
+        }
 	napi->gro_list = NULL;
 	napi->gro_count = 0;
+
+        ofo_queue = napi->out_of_order_queue_list;
+        while (ofo_queue) {
+                ofo_queue2 = ofo_queue->next_queue;
+                kfree(ofo_queue);
+                ofo_queue = ofo_queue2;
+        }
+        napi->out_of_order_queue_list = NULL;
 }
 EXPORT_SYMBOL(netif_napi_del);
 
@@ -4618,6 +4923,8 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 	list_del_init(&n->poll_list);
 
 	have = netpoll_poll_lock(n);
+
+	napi_clean_tcp_ofo_queue(n);
 
 	weight = n->weight;
 
@@ -4652,7 +4959,7 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 		/* flush too old packets
 		 * If HZ < 1000, flush all packets.
 		 */
-		napi_gro_flush(n, HZ >= 1000);
+		napi_gro_flush(n, HZ >= 1000, n->dev->gro_ofo_timeout);
 	}
 
 	/* Some drivers may have called napi_schedule
