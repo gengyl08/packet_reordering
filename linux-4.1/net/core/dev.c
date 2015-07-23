@@ -4027,7 +4027,7 @@ void napi_clean_tcp_ofo_queue(struct napi_struct *napi) {
 		while (ofo_queue) {
 				ofo_queue2 = ofo_queue->next_queue;
 
-				if (timestamp - ofo_queue->timestamp > 1e8) {
+				if (timestamp - ofo_queue->timestamp > 100000000) {
 						ofo_queue->timestamp = 0;
 						ofo_queue->hash = 0;
 						ofo_queue->seq_next = 0;
@@ -4045,7 +4045,7 @@ void napi_clean_tcp_ofo_queue(struct napi_struct *napi) {
  */
 void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 {
-		struct sk_buff *skb, *prev = NULL, *gro_list_old = napi->gro_list, *p, *skb_new;
+		struct sk_buff *skb, *prev = NULL, *p, *skb_new;
 
 		/* scan list and build reverse chain */
 		for (skb = napi->gro_list; skb != NULL; skb = skb->next) {
@@ -4072,6 +4072,7 @@ void napi_gro_flush(struct napi_struct *napi, bool flush_old)
 				} else {
 
 						p = skb->next;
+						printk(KERN_INFO "napi_gro_flush\n");
 						skb_new = dev_gro_complete(napi, skb, flush_old);
 						if (!skb_new) {
 								if (prev != NULL) {
@@ -4367,6 +4368,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 				}
 				*pp = NULL;
 				nskb->next = NULL;
+				printk(KERN_INFO "gro overflow\n");
 				dev_gro_complete(napi, nskb, false);
 		} else {
 				napi->gro_count++;
@@ -4738,16 +4740,19 @@ void napi_complete_done(struct napi_struct *n, int work_done)
 		return;
 
 	if (unlikely(napi_disable_pending(n))) {
+		printk(KERN_INFO "napi_complete_done 1\n");
 		napi_gro_flush(n, false);
 	}
 
 	if (n->dev->gro_flush_timeout) {
+		printk(KERN_INFO "napi_complete_done 2\n");
 		napi_gro_flush(n, true);
 		if (n->gro_list) {
 			hrtimer_start(&n->timer, ns_to_ktime(n->dev->gro_flush_timeout),
 				HRTIMER_MODE_REL_PINNED);
 		}
 	} else {
+		printk(KERN_INFO "napi_complete_done 3\n");
 		napi_gro_flush(n, false);
 	}
 
@@ -4971,6 +4976,7 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 		/* flush too old packets
 		 * If HZ < 1000, flush all packets.
 		 */
+		printk(KERN_INFO "napi_poll\n");
 		napi_gro_flush(n, true);
 	}
 
