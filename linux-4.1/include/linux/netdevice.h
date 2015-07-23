@@ -322,6 +322,7 @@ struct napi_struct {
 	unsigned int		napi_id;
 
 	struct sk_buff_head_gro *out_of_order_queue_list;
+	struct sk_buff_head_gro *out_of_order_queue_last;
 };
 
 enum {
@@ -1651,7 +1652,7 @@ struct net_device {
 #endif
 
 	unsigned long		gro_flush_timeout;
-	unsigned long		gro_ofo_timeout;
+	unsigned long		gro_inseq_timeout;
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 
@@ -1934,7 +1935,7 @@ struct napi_gro_cb {
 	u16	gro_remcsum_start;
 
 	/* jiffies when first packet was created/queued */
-	unsigned long age;
+	//unsigned long age;
 
 	/* Used in ipv6_gro_receive() and foo-over-udp */
 	u16	proto;
@@ -1983,7 +1984,7 @@ struct napi_gro_cb {
         __u32 tcp_hash;
 
         /* similar to age, for tcp reordering only */
-        u64 timestamp;
+        //u64 timestamp;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
@@ -2971,7 +2972,7 @@ static inline int netif_receive_skb(struct sk_buff *skb)
 	return netif_receive_skb_sk(skb->sk, skb);
 }
 gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb);
-void napi_gro_flush(struct napi_struct *napi, bool flush_old, u64 timeout);
+void napi_gro_flush(struct napi_struct *napi, bool flush_old);
 struct sk_buff *napi_get_frags(struct napi_struct *napi);
 gro_result_t napi_gro_frags(struct napi_struct *napi);
 struct packet_offload *gro_find_receive_by_type(__be16 type);

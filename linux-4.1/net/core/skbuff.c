@@ -3253,8 +3253,7 @@ void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb) {
                         break;
                 }
         }
-
-
+        ofo_queue->timestamp = ktime_to_ns(ktime_get());
 
         printk(KERN_NOTICE "skb_gro_flush qlen %u skb %u\n", qlen, skb_num);
 }
