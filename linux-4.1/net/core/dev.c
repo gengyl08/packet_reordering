@@ -3959,7 +3959,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 		}
 
 		age = timestamp - ofo_queue->timestamp;
-		printk(KERN_INFO "queue age: %u\n", age);
+		printk(KERN_INFO "queue age: %ul\n", age);
 
 		has_inseq = !before(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq);
 
