@@ -4828,6 +4828,7 @@ static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
 	if (napi->gro_list)
 		napi_schedule(napi);
 
+	printk(KERN_INFO "timer expires\n");
 	return HRTIMER_NORESTART;
 }
 
@@ -5009,6 +5010,8 @@ static void net_rx_action(struct softirq_action *h)
 	local_irq_disable();
 	list_splice_init(&sd->poll_list, &list);
 	local_irq_enable();
+
+	printk(KERN_INFO "enter soft irq\n");
 
 	for (;;) {
 		struct napi_struct *n;
