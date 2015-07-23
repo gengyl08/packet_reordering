@@ -3963,7 +3963,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 		has_inseq = !before(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq);
 
-		if (!flush_old || (!has_inseq && age > ofo_queue->ofo_timeout)) {
+		if (!flush_old || (!has_inseq && age > napi->dev->gro_ofo_timeout)) {
 			while (p != NULL) {
 				p2 = NAPI_GRO_CB(p)->next;
 				if (p2)

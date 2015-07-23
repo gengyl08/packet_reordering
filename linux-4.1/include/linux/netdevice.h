@@ -1653,6 +1653,7 @@ struct net_device {
 
 	unsigned long		gro_flush_timeout;
 	unsigned long		gro_inseq_timeout;
+	unsigned long		gro_ofo_timeout;
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 
