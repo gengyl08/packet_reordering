@@ -3951,6 +3951,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 		bool flushed = false;
 		u64 timestamp = ktime_to_ns(ktime_get());
 		u64 age;
+		bool has_inseq;
 
 		if (ofo_queue == NULL) {
 				napi_gro_complete(skb);
@@ -3959,7 +3960,10 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 		age = timestamp - ofo_queue->timestamp;
 		printk(KERN_INFO "queue age: %u\n", age);
-		if (!flush_old || age > ofo_queue->ofo_timeout) {
+
+		has_inseq = !before(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq);
+
+		if (!flush_old || (!has_inseq && age > ofo_queue->ofo_timeout)) {
 			while (p != NULL) {
 				p2 = NAPI_GRO_CB(p)->next;
 				if (p2)
@@ -3975,7 +3979,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 				flushed = true;
 				p = p2;
 			}
-		} else if (age > napi->dev->gro_inseq_timeout) {
+		} else if (has_inseq && age > napi->dev->gro_inseq_timeout) {
 			while (p != NULL && !before(ofo_queue->seq_next, NAPI_GRO_CB(p)->seq)) {
 					p2 = NAPI_GRO_CB(p)->next;
 					if (p2)
