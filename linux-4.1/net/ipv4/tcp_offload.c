@@ -196,7 +196,6 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	unsigned int off;
 	int merged = 0;
 	int flush = 1;
-	int i;
 	struct sk_buff_head_gro *ofo_queue;
 	int err;
 

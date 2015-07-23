@@ -3958,7 +3958,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 		}
 
 		age = timestamp - ofo_queue->timestamp;
-
+		printk(KERN_INFO "queue age: %u\n", age);
 		if (!flush_old || age > ofo_queue->ofo_timeout) {
 			while (p != NULL) {
 				p2 = NAPI_GRO_CB(p)->next;
@@ -4748,6 +4748,7 @@ void napi_complete_done(struct napi_struct *n, int work_done)
 		printk(KERN_INFO "napi_complete_done 2\n");
 		napi_gro_flush(n, true);
 		if (n->gro_list) {
+			printk(KERN_INFO "start timer\n");
 			hrtimer_start(&n->timer, ns_to_ktime(n->dev->gro_flush_timeout),
 				HRTIMER_MODE_REL_PINNED);
 		}
