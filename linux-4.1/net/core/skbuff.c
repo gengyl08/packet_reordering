@@ -3223,11 +3223,16 @@ void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb) {
 
         struct sk_buff *p = ofo_queue->next, *p2;
         unsigned qlen = 0, skb_num = 0;
+        u64 timestamp;
 
         if (skb == NULL) {
                 printk(KERN_ERR "skb_gro_flush second parameter cannot be NULL\n");
                 BUG_ON(skb == NULL);
         }
+
+        timestamp = ktime_to_ns(ktime_get());
+        printk(KERN_INFO "queue age: %llu\n", timestamp - ofo_queue->timestamp);
+		ofo_queue->timestamp = timestamp;
 
         while (p != NULL) {
 
@@ -3253,7 +3258,6 @@ void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb) {
                         break;
                 }
         }
-        ofo_queue->timestamp = ktime_to_ns(ktime_get());
 
         printk(KERN_NOTICE "skb_gro_flush qlen %u skb %u\n", qlen, skb_num);
 }
