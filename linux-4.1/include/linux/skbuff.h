@@ -196,6 +196,7 @@ struct sk_buff_head_gro {
         struct sk_buff_head_gro         *next_queue;
         struct sk_buff_head_gro         *prev_queue;
 
+        unsigned int									mss;
         u64                                             timestamp;
         u64                                             ofo_timeout;
         __u32                                           hash;

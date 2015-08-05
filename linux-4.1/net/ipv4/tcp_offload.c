@@ -86,19 +86,19 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 		int type = skb_shinfo(skb)->gso_type;
 
 		if (unlikely(type &
-			     ~(SKB_GSO_TCPV4 |
-			       SKB_GSO_DODGY |
-			       SKB_GSO_TCP_ECN |
-			       SKB_GSO_TCPV6 |
-			       SKB_GSO_GRE |
-			       SKB_GSO_GRE_CSUM |
-			       SKB_GSO_IPIP |
-			       SKB_GSO_SIT |
-			       SKB_GSO_UDP_TUNNEL |
-			       SKB_GSO_UDP_TUNNEL_CSUM |
-			       SKB_GSO_TUNNEL_REMCSUM |
-			       0) ||
-			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
+				 ~(SKB_GSO_TCPV4 |
+				   SKB_GSO_DODGY |
+				   SKB_GSO_TCP_ECN |
+				   SKB_GSO_TCPV6 |
+				   SKB_GSO_GRE |
+				   SKB_GSO_GRE_CSUM |
+				   SKB_GSO_IPIP |
+				   SKB_GSO_SIT |
+				   SKB_GSO_UDP_TUNNEL |
+				   SKB_GSO_UDP_TUNNEL_CSUM |
+				   SKB_GSO_TUNNEL_REMCSUM |
+				   0) ||
+				 !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
 			goto out;
 
 		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
@@ -129,7 +129,7 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 		tcp_gso_tstamp(segs, skb_shinfo(gso_skb)->tskey, seq, mss);
 
 	newcheck = ~csum_fold((__force __wsum)((__force u32)th->check +
-					       (__force u32)delta));
+						   (__force u32)delta));
 
 	do {
 		th->fin = th->psh = 0;
@@ -166,7 +166,7 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 
 	delta = htonl(oldlen + (skb_tail_pointer(skb) -
 				skb_transport_header(skb)) +
-		      skb->data_len);
+			  skb->data_len);
 	th->check = ~csum_fold((__force __wsum)((__force u32)th->check +
 				(__force u32)delta));
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
@@ -191,10 +191,8 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	__u32 in_seq_next;
 	unsigned int thlen;
 	__be32 flags;
-	unsigned int mss = 1;
 	unsigned int hlen;
 	unsigned int off;
-	int merged = 0;
 	int flush = 1;
 	struct sk_buff_head_gro *ofo_queue;
 	int err;
@@ -210,21 +208,27 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	th = skb_gro_header_fast(skb, off);
 	if (skb_gro_header_hard(skb, hlen)) {
 		th = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!th))
-			goto out;
+		if (unlikely(!th)) {
+			NAPI_GRO_CB(skb)->flush = 1;
+			return NULL;
+		}
 	}
 	//printk(KERN_NOTICE "tcp1\n");
 
 	thlen = th->doff * 4;
-	if (thlen < sizeof(*th))
-		goto out;
+	if (thlen < sizeof(*th)) {
+		NAPI_GRO_CB(skb)->flush = 1;
+		return NULL;
+	}
 	//printk(KERN_NOTICE "tcp2\n");
 
 	hlen = off + thlen;
 	if (skb_gro_header_hard(skb, hlen)) {
 		th = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!th))
-			goto out;
+		if (unlikely(!th)) {
+			NAPI_GRO_CB(skb)->flush = 1;
+			return NULL;
+		}
 	}
 	//printk(KERN_NOTICE "tcp3\n");
 
@@ -255,9 +259,13 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 		goto found;
 	}
-	//printk(KERN_NOTICE "tcp4\n");
 
-	goto out_check_final;
+	flush = len < 1;
+	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
+					TCP_FLAG_RST | TCP_FLAG_SYN |
+					TCP_FLAG_FIN));
+	NAPI_GRO_CB(skb)->flush |= (flush != 0);
+	return NULL;
 
 found:
 	//printk(KERN_NOTICE "found0\n");
@@ -279,16 +287,16 @@ found:
 	if (flush)
 	printk(KERN_NOTICE "flush3 %u\n", flush);
 	//for (i = sizeof(*th); i < thlen; i += 4)
-	//      flush |= *(u32 *)((u8 *)th + i) ^
-	//	       *(u32 *)((u8 *)th2 + i);
+	//	  flush |= *(u32 *)((u8 *)th + i) ^
+	//		   *(u32 *)((u8 *)th2 + i);
 	//if (flush)
 	//printk(KERN_NOTICE "flush4 %u\n", flush);
 
-	mss = tcp_skb_mss(p);
+	//mss = tcp_skb_mss(p);
 
-	flush |= (len - 1) >= mss;
-	if (flush)
-	printk(KERN_NOTICE "flush5 %u %u\n", len, mss);
+	//flush |= (len - 1) >= mss;
+	//if (flush)
+	//printk(KERN_NOTICE "flush5 %u %u\n", len, mss);
 	/* allow out of order packets to be merged latter */
 	//flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
 
@@ -300,7 +308,8 @@ found:
 
 	ofo_queue = NAPI_GRO_CB(p)->out_of_order_queue;
 	NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
-	skb_shinfo(skb)->gso_size = mss;
+	ofo_queue->mss = max(ofo_queue->mss, len);
+	skb_shinfo(skb)->gso_size = ofo_queue->mss;
 	//printk(KERN_NOTICE "%u\n", flush);
 	//printk(KERN_NOTICE "%u\n", ofo_queue->qlen);
 
@@ -357,7 +366,6 @@ found:
 				NAPI_GRO_CB(p2)->prev = skb;
 			}
 
-			merged = 1;
 			NAPI_GRO_CB(skb)->same_flow = 1;
 			break;
 
@@ -383,7 +391,6 @@ found:
 						NAPI_GRO_CB(p2)->prev = skb;
 					}
 
-					merged = 1;
 					NAPI_GRO_CB(skb)->same_flow = 1;
 					break;
 
@@ -427,7 +434,6 @@ found:
 
 			skb_gro_free(p2);
 
-			merged = 1;
 			NAPI_GRO_CB(skb)->same_flow = 1;
 			break;
 
@@ -458,7 +464,6 @@ found:
 						NAPI_GRO_CB(p2)->next = skb;
 						ofo_queue->prev = skb;
 
-						merged = 1;
 						NAPI_GRO_CB(skb)->same_flow = 1;
 
 						if (in_seq == seq2) {
@@ -545,7 +550,6 @@ found:
 
 			}
 
-			merged = 1;
 			break;
 
 		} else if (after(seq, seq_next2)) {
@@ -562,7 +566,6 @@ found:
 				ofo_queue->prev = skb;
 				NAPI_GRO_CB(p2)->next = skb;
 
-				merged = 1;
 				NAPI_GRO_CB(skb)->same_flow = 1;
 				break;
 
@@ -579,26 +582,7 @@ found:
 		}
 	}
 
-out_check_final:
-	//printk(KERN_NOTICE "%u\n", len);
-	//printk(KERN_NOTICE "%u\n", mss);
-	flush = len < mss;
-	//flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
-	//			      TCP_FLAG_RST | TCP_FLAG_SYN |
-	//			      TCP_FLAG_FIN));
-
-	if (p && (!merged || flush)) {
-		printk(KERN_NOTICE "flush point 9\n");
-		pp = head;
-	}
-
-out:
-	//printk(KERN_NOTICE "%x\n", NAPI_GRO_CB(skb)->flush);
-	NAPI_GRO_CB(skb)->flush |= (flush != 0);
-	//printk(KERN_NOTICE "%x\n", NAPI_GRO_CB(skb)->flush);
-	//printk(KERN_NOTICE "%x\n", pp);
-
-	return pp;
+	return NULL;
 }
 
 int tcp_gro_complete(struct sk_buff *skb)
@@ -622,8 +606,8 @@ static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *
 {
 	/* Don't bother verifying checksum if we're going to flush anyway. */
 	if (!NAPI_GRO_CB(skb)->flush &&
-	    skb_gro_checksum_validate(skb, IPPROTO_TCP,
-				      inet_gro_compute_pseudo)) {
+		skb_gro_checksum_validate(skb, IPPROTO_TCP,
+					  inet_gro_compute_pseudo)) {
 		NAPI_GRO_CB(skb)->flush = 1;
 		return NULL;
 	}
