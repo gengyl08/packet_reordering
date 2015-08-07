@@ -3290,7 +3290,7 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
 	}
 
         if (unlikely(p->len + len >= 65536))
-                return -E2BIG;
+                return SKB_MERGE_2BIG;
 
         if (headlen <= offset) {
                 skb_frag_t *frag;
@@ -3299,7 +3299,7 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
                 int nr_frags = pinfo->nr_frags + i;
 
                 if (nr_frags > MAX_SKB_FRAGS)
-                        return -E2BIG;
+                        return SKB_MERGE_2BIG;
 
                 offset -= headlen;
                 pinfo->nr_frags = nr_frags;
@@ -3332,7 +3332,7 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
                 unsigned int first_offset;
 
                 if (nr_frags + 1 + skbinfo->nr_frags > MAX_SKB_FRAGS)
-                        return -E2BIG;
+                        return SKB_MERGE_2BIG;
 
                 first_offset = skb->data -
                                (unsigned char *)page_address(page) +
@@ -3352,7 +3352,7 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
                 goto done;
         }
 
-        return -EINVAL;
+        return SKB_MERGE_INVAL;
 
 done:
 	if (NAPI_GRO_CB(skb)->gso_end || pinfo->gso_size > skbinfo->gso_size) {
