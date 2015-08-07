@@ -308,8 +308,7 @@ found:
 
 	ofo_queue = NAPI_GRO_CB(p)->out_of_order_queue;
 	NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
-	ofo_queue->mss = max(ofo_queue->mss, len);
-	skb_shinfo(skb)->gso_size = ofo_queue->mss;
+	skb_shinfo(skb)->gso_size = len;
 	//printk(KERN_NOTICE "%u\n", flush);
 	//printk(KERN_NOTICE "%u\n", ofo_queue->qlen);
 
@@ -374,7 +373,7 @@ found:
 
 			if ((err = skb_gro_merge(skb, p2))) {
 
-				if (err == -E2BIG && in_seq != seq) {
+				if (err != SKB_MERGE_INVAL && in_seq != seq) {
 					NAPI_GRO_CB(skb)->out_of_order_queue = ofo_queue;
 					NAPI_GRO_CB(skb)->prev = NAPI_GRO_CB(p2)->prev;
 					NAPI_GRO_CB(skb)->next = p2;
@@ -394,7 +393,7 @@ found:
 					NAPI_GRO_CB(skb)->same_flow = 1;
 					break;
 
-				} else {
+				} else if (err == SKB_MERGE_2BIG || err == SKB_MERGE_INVAL) {
 					printk(KERN_NOTICE "flush point 3\n");
 					p3 = NAPI_GRO_CB(p2)->next;
 					if (p3 != NULL) {
@@ -407,6 +406,16 @@ found:
 						NAPI_GRO_CB(skb)->flush = 1;
 						return head;
 					}
+				} else {
+					printk(KERN_NOTICE "flush point 30\n");
+					p3 = NAPI_GRO_CB(p2)->prev;
+					if (p3 != NULL) {
+						*head = p2;
+						p2->next = p_next;
+						skb_gro_flush(ofo_queue, p3);
+					}
+					NAPI_GRO_CB(skb)->flush = 1;
+					return NULL;
 				}
 			}
 
@@ -442,7 +451,7 @@ found:
 
 			if ((err = skb_gro_merge(p2, skb))) {
 
-				if (err == -E2BIG) {
+				if (err != SKB_MERGE_INVAL) {
 					p3 = NAPI_GRO_CB(p2)->next;
 					if (p3 != NULL) {
 						if (in_seq == seq2) {
@@ -506,7 +515,7 @@ found:
 
 					//printk(KERN_NOTICE "merge p3\n");
 					if ((err = skb_gro_merge(p2, p3))) {
-						if (err == -E2BIG) {
+						if (err != SKB_MERGE_INVAL) {
 							if (in_seq == seq2) {
 								printk(KERN_NOTICE "flush point 50\n");
 								*head = p3;

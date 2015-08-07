@@ -189,6 +189,14 @@ struct sk_buff_head {
 	spinlock_t	lock;
 };
 
+enum {
+	SKB_MERGE_2BIG = 1,
+	SKB_MERGE_INVAL = 2,
+	SKB_MERGE_GSO_FIRST_END = 3,
+	SKB_MERGE_GSO_FIRST_SMALL = 4,
+	SKB_MERGE_GSO_SECOND_MULTI_SMALL = 5,
+};
+
 struct sk_buff_head_gro {
         /* These two members must be first. */
         struct sk_buff                          *next;
@@ -196,7 +204,6 @@ struct sk_buff_head_gro {
         struct sk_buff_head_gro         *next_queue;
         struct sk_buff_head_gro         *prev_queue;
 
-        unsigned int									mss;
         u64                                             timestamp;
         u64                                             ofo_timeout;
         __u32                                           hash;

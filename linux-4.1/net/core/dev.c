@@ -4032,7 +4032,6 @@ void napi_clean_tcp_ofo_queue(struct napi_struct *napi) {
 				ofo_queue2 = ofo_queue->next_queue;
 
 				if (timestamp - ofo_queue->timestamp > 100000000) {
-						ofo_queue->mss = 0;
 						ofo_queue->timestamp = 0;
 						ofo_queue->hash = 0;
 						ofo_queue->seq_next = 0;
@@ -4176,7 +4175,6 @@ static struct sk_buff_head_gro* napi_get_tcp_ofo_queue(struct napi_struct *napi,
 				ofo_queue = ofo_queue->next_queue;
 		}
 
-		ofo_queue_last->mss = 0;
 		ofo_queue_last->timestamp = 0;
 		ofo_queue_last->hash = 0;
 		ofo_queue_last->qlen = 0;
@@ -4215,6 +4213,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 				skb_set_network_header(skb, skb_gro_offset(skb));
 				skb_reset_mac_len(skb);
+				NAPI_GRO_CB(skb)->gso_end = 0;
 				NAPI_GRO_CB(skb)->same_flow = 0;
 				NAPI_GRO_CB(skb)->flush = 0;
 				NAPI_GRO_CB(skb)->free = 0;
@@ -4289,7 +4288,6 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 						// save this ns timestamp because we are putting the queue back immediately
 						ofo_queue->timestamp = ktime_to_ns(ktime_get());
-						ofo_queue->mss = max(ofo_queue->mss, NAPI_GRO_CB(skb)->len);
 						ofo_queue->hash = NAPI_GRO_CB(skb)->tcp_hash;
 						ofo_queue->prev_queue = NULL;
 						ofo_queue->next_queue = napi->out_of_order_queue_list;
@@ -4333,8 +4331,6 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 				if (!ofo_queue->hash) {
 					ofo_queue->seq_next = NAPI_GRO_CB(skb)->seq;
 				}
-
-				ofo_queue->mss = max(ofo_queue->mss, NAPI_GRO_CB(skb)->len);
 
 				if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
 
@@ -4863,7 +4859,6 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		ofo_queue->prev = NULL;
 		ofo_queue->next_queue = napi->out_of_order_queue_list;
 		ofo_queue->prev_queue = NULL;
-		ofo_queue->mss = 0;
 		ofo_queue->timestamp = 0;
 		ofo_queue->ofo_timeout = 1e5;
 		ofo_queue->hash = 0;

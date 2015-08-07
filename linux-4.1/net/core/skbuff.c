@@ -3277,6 +3277,18 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
         unsigned int len = skb_gro_len(skb);
         unsigned int delta_truesize;
 
+
+	// check gso_size
+	if (unlikely(NAPI_GRO_CB(p)->gso_end)) {
+		return SKB_MERGE_GSO_FIRST_END;
+	} else {
+		if (pinfo->gso_size > skbinfo->gso_size && NAPI_GRO_CB(skb)->count > 1) {
+			return SKB_MERGE_GSO_SECOND_MULTI_SMALL;
+		} else if (pinfo->gso_size < skbinfo->gso_size) {
+			return SKB_MERGE_GSO_FIRST_SMALL;
+		}
+	}
+
         if (unlikely(p->len + len >= 65536))
                 return -E2BIG;
 
@@ -3343,6 +3355,9 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
         return -EINVAL;
 
 done:
+	if (NAPI_GRO_CB(skb)->gso_end || pinfo->gso_size > skbinfo->gso_size) {
+		NAPI_GRO_CB(p)->gso_end = 1;
+	}
         NAPI_GRO_CB(p)->count += NAPI_GRO_CB(skb)->count;
         NAPI_GRO_CB(p)->len += NAPI_GRO_CB(skb)->len;
         p->data_len += len;
