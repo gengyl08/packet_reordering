@@ -3358,6 +3358,7 @@ done:
 	if (NAPI_GRO_CB(skb)->gso_end || pinfo->gso_size > skbinfo->gso_size) {
 		NAPI_GRO_CB(p)->gso_end = 1;
 	}
+	skbinfo->gso_size = 0;
         NAPI_GRO_CB(p)->count += NAPI_GRO_CB(skb)->count;
         NAPI_GRO_CB(p)->len += NAPI_GRO_CB(skb)->len;
         p->data_len += len;
