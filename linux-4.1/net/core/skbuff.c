@@ -3276,17 +3276,42 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
         unsigned int headlen = skb_headlen(skb);
         unsigned int len = skb_gro_len(skb);
         unsigned int delta_truesize;
+        struct iphdr *iph;
+        struct iphdr *iph2;
+		struct tcphdr *th;
+		struct tcphdr *th2;
+		__be32 flags, flags2;
+		unsigned int thlen;
+		int i;
+
+        // check ACK, ECN in IP, TCP flags and options
+		iph = ip_hdr(p);
+		iph2 = ip_hdr(skb);
+		th = tcp_hdr(p);
+		th2 = tcp_hdr(skb);
+		flags = tcp_flag_word(th);
+		flags2 = tcp_flag_word(th2);
+		if ((__force int)(flags & TCP_FLAG_PSH) ||
+				(__force int)(iph->tos ^ iph2->tos) ||
+				(__force int)(th->ack_seq ^ th2->ack_seq) ||
+				(__force int)((tcp_flag_word(th) ^ tcp_flag_word(th2)) & (TCP_FLAG_CWR | TCP_FLAG_ECE | TCP_FLAG_ACK)) ||
+				(__force int)(th->doff ^ th2->doff)) {
+			return SKB_MERGE_FAIL;
+		} else {
+			thlen = th->doff * 4;
+			for (i = sizeof(*th); i < thlen; i += 4) {
+				if (*(u32 *)((u8 *)th + i) ^ *(u32 *)((u8 *)th2 + i)) {
+					return SKB_MERGE_FAIL;
+				}
+			}
+		}
 
 
 	// check gso_size
-	if (unlikely(NAPI_GRO_CB(p)->gso_end)) {
-		return SKB_MERGE_GSO_FIRST_END;
-	} else {
-		if (pinfo->gso_size > skbinfo->gso_size && NAPI_GRO_CB(skb)->count > 1) {
-			return SKB_MERGE_GSO_SECOND_MULTI_SMALL;
-		} else if (pinfo->gso_size < skbinfo->gso_size) {
-			return SKB_MERGE_GSO_FIRST_SMALL;
-		}
+	if (unlikely(NAPI_GRO_CB(p)->gso_end) ||
+			(pinfo->gso_size > skbinfo->gso_size && NAPI_GRO_CB(skb)->count > 1) ||
+			pinfo->gso_size < skbinfo->gso_size) {
+		return SKB_MERGE_FAIL;
 	}
 
         if (unlikely(p->len + len >= 65536))
@@ -3355,6 +3380,7 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
         return SKB_MERGE_INVAL;
 
 done:
+	tcp_flag_word(th) |= flags2 & TCP_FLAG_PSH;
 	if (NAPI_GRO_CB(skb)->gso_end || pinfo->gso_size > skbinfo->gso_size) {
 		NAPI_GRO_CB(p)->gso_end = 1;
 	}

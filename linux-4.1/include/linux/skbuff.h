@@ -192,10 +192,7 @@ struct sk_buff_head {
 enum {
 	SKB_MERGE_2BIG = 1,
 	SKB_MERGE_INVAL = 2,
-	SKB_MERGE_GSO_FIRST_END = 3,
-	SKB_MERGE_GSO_FIRST_SMALL = 4,
-	SKB_MERGE_GSO_SECOND_MULTI_SMALL = 5,
-	SKB_MERGE_ 
+	SKB_MERGE_FAIL = 3,
 };
 
 struct sk_buff_head_gro {

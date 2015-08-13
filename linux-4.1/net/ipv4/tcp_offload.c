@@ -263,7 +263,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	flush = len < 1;
 	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
 					TCP_FLAG_RST | TCP_FLAG_SYN |
-					TCP_FLAG_FIN | TCP_FLAG_CWR));
+					TCP_FLAG_FIN | TCP_FLAG_CWR | TCP_FLAG_ECE));
 	NAPI_GRO_CB(skb)->flush |= (flush != 0);
 	return NULL;
 
