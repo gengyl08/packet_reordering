@@ -195,6 +195,7 @@ enum {
 	SKB_MERGE_GSO_FIRST_END = 3,
 	SKB_MERGE_GSO_FIRST_SMALL = 4,
 	SKB_MERGE_GSO_SECOND_MULTI_SMALL = 5,
+	SKB_MERGE_ 
 };
 
 struct sk_buff_head_gro {

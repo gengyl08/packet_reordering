@@ -263,7 +263,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	flush = len < 1;
 	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
 					TCP_FLAG_RST | TCP_FLAG_SYN |
-					TCP_FLAG_FIN));
+					TCP_FLAG_FIN | TCP_FLAG_CWR));
 	NAPI_GRO_CB(skb)->flush |= (flush != 0);
 	return NULL;
 
@@ -273,19 +273,15 @@ found:
 	//printk(KERN_NOTICE "flush-1 %u\n", flush);
 	//printk(KERN_NOTICE "flush-2 %u\n", NAPI_GRO_CB(p)->flush);
 	//printk(KERN_NOTICE "flush-3 %u\n", NAPI_GRO_CB(p)->flush_id);
-	flush = NAPI_GRO_CB(p)->flush; //| NAPI_GRO_CB(p)->flush_id;
+	flush = NAPI_GRO_CB(p)->flush;
 	if (flush)
 	printk(KERN_NOTICE "flush0 %u\n", flush);
-	flush |= (__force int)(flags & TCP_FLAG_CWR);
+	flush |= (__force int)(flags & (TCP_FLAG_RST | TCP_FLAG_SYN | TCP_FLAG_FIN | TCP_FLAG_URG));
 	if (flush)
 	printk(KERN_NOTICE "flush1 %u\n", flush);
-	flush |= (__force int)((flags ^ tcp_flag_word(th2)) &
-		  ~(TCP_FLAG_CWR | TCP_FLAG_FIN | TCP_FLAG_PSH));
-	if (flush)
-	printk(KERN_NOTICE "flush2 %u\n", flush);
-	flush |= (__force int)(th->ack_seq ^ th2->ack_seq);
-	if (flush)
-	printk(KERN_NOTICE "flush3 %u\n", flush);
+	//flush |= (__force int)(th->ack_seq ^ th2->ack_seq);
+	//if (flush)
+	//printk(KERN_NOTICE "flush3 %u\n", flush);
 	//for (i = sizeof(*th); i < thlen; i += 4)
 	//	  flush |= *(u32 *)((u8 *)th + i) ^
 	//		   *(u32 *)((u8 *)th2 + i);
