@@ -260,6 +260,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		goto found;
 	}
 
+	printk(KERN_INFO "queue not found\n");
 	flush = len < 1;
 	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
 					TCP_FLAG_RST | TCP_FLAG_SYN |
@@ -355,6 +356,7 @@ found:
 					*head = p2;
 					p2->next = p_next;
 					skb_gro_flush(ofo_queue, p3);
+					printk(KERN_INFO "flush point 100\n");
 				}
 				NAPI_GRO_CB(skb)->flush = 1;
 				return NULL;
@@ -384,6 +386,7 @@ found:
 
 			if ((err = skb_gro_merge(skb, p2))) {
 				if (err == SKB_MERGE_INVAL) {
+					printk(KERN_NOTICE "flush point 140\n");
 					NAPI_GRO_CB(skb)->flush = 1;
 					return head;
 				} else if (in_seq != seq) {
@@ -410,12 +413,14 @@ found:
 					printk(KERN_NOTICE "flush point 3\n");
 					p3 = NAPI_GRO_CB(p2)->next;
 					if (p3 != NULL) {
+						printk(KERN_NOTICE "flush point 31\n");
 						*head = p3;
 						p3->next = p_next;
 						skb_gro_flush(ofo_queue, p2);
 						NAPI_GRO_CB(skb)->flush = 1;
 						return NULL;
 					} else {
+						printk(KERN_NOTICE "flush point 32\n");
 						NAPI_GRO_CB(skb)->flush = 1;
 						return head;
 					}
@@ -477,6 +482,7 @@ found:
 						continue;
 					} else {
 						if (in_seq == seq2 && th->psh) {
+							printk(KERN_NOTICE "flush point 110\n");
 							NAPI_GRO_CB(skb)->flush = 1;
 							return head;
 						}
@@ -515,8 +521,10 @@ found:
 			p3 = NAPI_GRO_CB(p2)->next;
 			if (in_seq == seq2 && th2->psh) {
 				if (p3 == NULL) {
+					printk(KERN_NOTICE "flush point 120\n");
 					return head;
 				} else {
+					printk(KERN_NOTICE "flush point 101\n");
 					*head = p3;
 					p3->next = p_next;
 					skb_gro_flush(ofo_queue, p2);
@@ -562,8 +570,10 @@ found:
 					p3 = NAPI_GRO_CB(p2)->next;
 					if (in_seq == seq2 && th2->psh) {
 						if (p3 == NULL) {
+							printk(KERN_NOTICE "flush point 130\n");
 							return head;
 						} else {
+							printk(KERN_NOTICE "flush point 102\n");
 							*head = p3;
 							p3->next = p_next;
 							skb_gro_flush(ofo_queue, p2);

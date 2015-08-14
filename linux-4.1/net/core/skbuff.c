@@ -3285,10 +3285,26 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
 		int i;
 
         // check ACK, ECN in IP, TCP flags and options
-		iph = ip_hdr(p);
-		iph2 = ip_hdr(skb);
-		th = tcp_hdr(p);
-		th2 = tcp_hdr(skb);
+                if (p->network_header >= p->tail) {
+                        iph = skb_gro_header_fast(p, p->network_header - p->tail);
+                } else {
+                        iph = ip_hdr(p);
+                }
+                if (skb->network_header >= skb->tail) {
+                        iph2 = skb_gro_header_fast(skb, skb->network_header - skb->tail);
+                } else {
+                        iph2 = ip_hdr(skb);
+                }
+                if (p->transport_header >= p->tail) {
+                        th = skb_gro_header_fast(p, p->transport_header - p->tail);
+                } else {
+                        th = tcp_hdr(p);
+                }
+                if (skb->transport_header >= skb->tail) {
+                        th2 = skb_gro_header_fast(skb, skb->transport_header - skb->tail);
+                } else {
+                        th2 = tcp_hdr(skb);
+                }
 		flags = tcp_flag_word(th);
 		flags2 = tcp_flag_word(th2);
 		if ((__force int)(flags & TCP_FLAG_PSH) ||
@@ -3376,7 +3392,7 @@ int skb_gro_merge(struct sk_buff *p, struct sk_buff *skb)
                 NAPI_GRO_CB(skb)->free = NAPI_GRO_FREE_STOLEN_HEAD;
                 goto done;
         }
-
+	printk(KERN_INFO "skb merge invalid\n");
         return SKB_MERGE_INVAL;
 
 done:
