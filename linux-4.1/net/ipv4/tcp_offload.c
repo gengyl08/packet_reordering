@@ -262,7 +262,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 	printk(KERN_INFO "queue not found\n");
 	flush = len < 1;
-	flush |= (__force int)(flags & (TCP_FLAG_URG | TCP_FLAG_PSH |
+	flush |= (__force int)(flags & (TCP_FLAG_URG |
 					TCP_FLAG_RST | TCP_FLAG_SYN |
 					TCP_FLAG_FIN));
 	flush |= off < skb_headlen(skb);
