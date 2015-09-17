@@ -1,0 +1,7 @@
+3.11.10-smp-745.7.0.0
+senders_num	flow_num	cpu	InPkts_receiver	InSegs_receiver	batch_ratio	TCPOFOQueue_receiver	OutSegs_receiver	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3.11.10-smp-745.7.0.0
+senders_num	flow_num	cpu	InPkts_receiver	InSegs_receiver	batch_ratio	TCPOFOQueue_receiver	OutSegs_receiver	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3.11.10-smp-745.7.0.0
+senders_num	flow_num	cpu	InPkts_receiver	InSegs_receiver	batch_ratio	TCPOFOQueue_receiver	OutSegs_receiver	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+2	128	1095.0	812799.583333	813151.266667	0.999567505644	0.0	406667.733333	468456.583333	0.0	0.0

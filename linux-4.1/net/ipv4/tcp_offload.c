@@ -320,10 +320,14 @@ found:
 	}
 	//printk(KERN_NOTICE "found1\n");
 
-	if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
-		printk(KERN_NOTICE "flush point 2\n");
-		NAPI_GRO_CB(skb)->flush = 1;
-		return NULL;
+	if (before(seq, ofo_queue->seq_next)) {
+		if (ofo_queue->flushed) {
+			printk(KERN_NOTICE "flush point 2\n");
+			NAPI_GRO_CB(skb)->flush = 1;
+			return NULL;
+		} else {
+			ofo_queue->seq_next = seq;
+		}
 	}
 
 	// need to make sure the one in gro_list is always the head of the ofo_queue

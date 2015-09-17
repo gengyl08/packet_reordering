@@ -1,0 +1,828 @@
+#!/usr/bin/python
+# Copyright 2010, Google, Inc
+# author: Jiangbo Li (jiangbo@google.com)
+
+import commands, signal, os, re, random, sys, time, datetime, math
+import subprocess
+import socket
+from optparse import OptionParser
+from time import gmtime, strftime
+
+############################ configurations ##############################
+ssh_user = 'root'
+remote_binary_dir = '/data/firefly/bin'
+############################ Constants ###################################
+firefly_src = '/home/build/static/projects_norep/platforms/networking/firefly'
+topology_src = firefly_src + '/bin/topology'
+mlx4_lib_src = firefly_src + '/lib/libmlx4-rdmav2.so'
+mlx4_lib_dest = '/data/firefly/lib'
+# ===================== Define the Master Object =========================
+class SpitfireMaster:
+  """ SpitfireMaster """
+
+  def __init__(self, host, port=8888):
+    self.__host = host
+    self.__port = port
+    self.flags = ''
+    self.__common_flags = '--rpc_security_protocol="" '
+    self.__common_flags += '--rpc_use_default_security="" '
+    self.__common_flags += '--rpc_default_rate_acl=INSECURE '
+    self.__all_host_names = None
+
+  @property
+  def host(self):
+    return self.__host
+
+  def HostPort(self):
+    return '%s:%s' % (self.__host, self.__port)
+
+  def SetAllHostNames(self, all_hosts_names):
+    self.__all_host_names = all_hosts_names
+
+  def GetAllHostNames(self):
+    if self.__all_host_names is None:
+      # Check if the target is IB cluster.
+      cmd = ('ssh -k -q root@%s \'ifconfig | grep eoib\'; ' %
+             (self.__host))
+      p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+      p.wait()
+      if not p.stdout.read():
+        return []  # not an IB host.
+
+      # Copy topology command to the host since some cluster doesn't install
+      # the tools in all machines.
+      cmd = ('scp -q %s root@%s:%s; ' %
+             (topology_src, self.__host, '/tmp/spitfire_topology'))
+      output_modifier = '| sed -e \'/MF0/d\' | cut -d \' \' -f 1'
+      command = 'modprobe ib_umad >/dev/null 2>&1; /tmp/spitfire_topology -h'
+      cmd += 'ssh -k -q root@%s \'%s\' %s; ' %  (self.__host, command,
+                                              output_modifier)
+      p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+      p.wait()
+      cmd = ('ssh -k -q root@%s /tmp/spitfire_topology -h | sed -e \'/MF0/d\' '
+             '| cut -d \' \' -f 1' % (self.__host))
+      p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+      p.wait()
+      hosts = p.stdout.read().strip()
+      self.__all_host_names = hosts.split()
+
+    return self.__all_host_names
+
+
+  def Start(self):
+    global ssh_user
+    global options
+    global remote_binary_dir
+    output_modifier = (
+        ' | sed -e \'s/^/Master-%s:%s:/\' '
+        '-e \'/using fake authentication data for X11 forwarding/d\' '
+        '-e \'/Warning: Permanently added .* list of known hosts/d\' >> %s' %
+        (self.__host, self.__port, options.logfile))
+    # TODO(jiangbo): If verbose is not specified, I have to use += in the
+    # following code. Otherwise, the output still goes to the console.
+    # I don't know why.
+    #if not (options.verbose):
+    #  output_modifier += ' > /dev/null '
+    command = ('%s/spitfire_master '
+               '--port=%s %s %s' %
+               (remote_binary_dir, self.__port, self.flags, self.__common_flags))
+    command = ("container.py run spitfiremaster "
+               "\"sudo -u %s bash -c \\\"%s\\\"\"") % (ssh_user, command)
+    # set the maximum open files.
+    command = ('ulimit -n 100000; ' +
+               'container.py run --overwrite --memlimit=unlimited ' +
+               '--network-max=99999 spitfiremaster uptime; ' +
+               command)
+    logfile = open(options.logfile, 'a')
+    if logfile:
+      print >>logfile, '%s:%s:: %s' % (self.__host, self.__port, command)
+      logfile.close()
+    cmd = 'ssh -k -q root@%s \'%s\'   2>&1 %s ' % \
+        (self.__host, command, output_modifier)
+    if (not options.dontrun):
+      subprocess.Popen(cmd, shell=True)
+
+
+spitfire_masters = [ ]
+def AddMaster(master):
+  spitfire_masters.append(master)
+  if (len(spitfire_masters) > 1):
+    print 'Can not add more than one master at this time.'
+    quit()
+
+#=================== Define the SpitfireGroup Object ===========================
+class SpitfireGroup:
+  'SpitfireGroup object how to start a group of traffic generators including'
+  'master and slaves'
+  def __init__(self, master, port, generator, name):
+    self.__master = master
+    self.__port = port
+    self.__generator = generator
+    self.__group_name = name
+    # Define flags for each hosts.
+    self.per_host_flags = { }
+    # Do we want to start gdbserver on this slave?
+    self.per_host_debug = [ ]
+    # by default, we automatically figure out the list of slaves.
+    self.slaves = [ ]
+    # A string which specify the command line flags
+    self.common_flags = ' '
+
+  def Initialize(self):
+    self.__GetSlaves()
+    # TODO(jiangbo): This reduces the occurences of "found no svelte
+    # servers" messages to once a day.  The real solution is to remove
+    # the dependency on chubby
+    self.common_flags += ' --svelte_retry_interval_ms=86400000 '
+    self.common_flags += '--rpc_security_protocol="" '
+    self.common_flags += '--rpc_use_default_security="" '
+    self.common_flags += '--rpc_default_rate_acl=INSECURE '
+
+  def __GetSlavesFromFlags(self, flags):
+    m_sources = re.search(r'--sources ([,\d\w]+)', flags)
+    m_destinations = re.search(r'--destinations ([,\d\w]+)', flags)
+
+    if (m_sources != None):
+      sources = m_sources.group(1);
+    else:
+      sources = ''
+    if (m_destinations != None):
+      destinations = m_destinations.group(1)
+    else:
+      destinations = ''
+
+    #print "S:", sources, "D:", destinations
+
+    if (sources.lower() != 'none' and
+        sources.lower() != 'all' and
+        sources != '' ):
+      self.slaves += sources.split(',')
+    if (destinations.lower() != 'all' and
+        destinations.lower() != 'none' and
+        destinations != ''):
+      self.slaves += destinations.split(',')
+    self.slaves = list(set(self.slaves)) #uniqify the list.
+
+  # Figure out the slaves.
+  def __GetSlaves(self):
+    self.__GetSlavesFromFlags(self.common_flags)
+    for host in self.per_host_flags:
+      self.slaves.append(host);
+      self.__GetSlavesFromFlags(self.per_host_flags[host])
+    for host in self.per_host_debug:
+      self.slaves.append(host);
+    # Use all the hosts for starting slaves.
+    if (len(self.slaves) == 0):
+      self.slaves = self.__master.GetAllHostNames()
+      self.slaves = list(set(self.slaves)) #uniqify the list.
+
+  def FilterSlaves(self, filter_str):
+    def __slave_filter(slave): return (slave.find(filter_str) >= 0)
+    if (self.slave_filter != None):
+      self.slaves = filter(__slave_filter, self.slaves)
+
+  def RemoveSlaves(self, remove_slaves):
+    self.slaves = [ x for x in self.slaves if x not in remove_slaves ]
+
+
+  def __StartOneSlave(self, host, slave_flags, dport):
+    global ssh_user
+    global options
+    output_modifier = (
+        ' | sed -e \'s/^/Slave-%s:%s:/\' '
+        '-e \'/using fake authentication data for X11 forwarding/d\' '
+        '-e \'/Warning: Permanently added .* list of known hosts/d\' >> %s' %
+        (host, self.__port, options.logfile))
+    # TODO(jiangbo): If verbose is not specified, I have to use += in the
+    # following code. Otherwise, the output still goes to the console.
+    # I don't know why.
+    #if not (options.verbose):
+    #  output_modifier += " > /dev/null "
+    command = ('%s/spitfire_slave --port=%d --groupname="%s" '
+               '--generator=\"%s\" --spitfire_master=%s %s ' %
+               (remote_binary_dir, self.__port,
+                self.__group_name, self.__generator,
+                self.__master.HostPort(),
+                slave_flags))
+    if dport:
+      command = 'gdbserver64 0.0.0.0:%s %s' % ( dport, command )
+    command = ("container.py run spitfireslave "
+               "\"sudo -u %s bash -c \\\"%s\\\"\"") % (ssh_user, command)
+    # set the maximum open files.
+    command = ('ulimit -n 100000; ' +
+               'container.py run --overwrite --net_rdma_hipri --memlimit=unlimited ' +
+               '--net_rdma --network-max=99999 spitfireslave uptime; ' +
+               command)
+    logfile = open(options.logfile, 'a')
+    if logfile:
+      print >>logfile, '%s:%s:: %s' % (host, self.__port, command)
+      logfile.close()
+    cmd = 'ssh root@%s \'%s\'  2>&1 %s' %\
+        (host, command, output_modifier)
+    if (not options.dontrun):
+      p = subprocess.Popen(cmd, shell=True)
+      return p
+
+  def Start(self):
+    global options
+    for host in self.slaves:
+      slave_flags = self.common_flags
+      if host in self.per_host_debug:
+        slave_flags += ' --no_keepalive '
+        self.__StartOneSlave(host, slave_flags, dport='1' + str(self.__port))
+      else:
+        if host in self.per_host_flags:
+          slave_flags += ' ' + self.per_host_flags[host] + ' '
+        self.__StartOneSlave(host, slave_flags, dport='')
+
+spitfire_groups = [ ]
+def AddGroup(group):
+  global spitfire_groups
+  spitfire_groups.append(group)
+  # TODO(jiangbo): Verify groups doesn't have the same name/port.
+
+########################### Functions #########################################
+def RunParallelCommandsInternal(hosts, maximum_parallel_ssh, command, *args):
+  target_host_list = list(hosts)
+  results = []
+  while target_host_list:
+    if len(target_host_list) > maximum_parallel_ssh:
+      current_target_host_list = target_host_list[:maximum_parallel_ssh]
+      target_host_list = target_host_list[maximum_parallel_ssh:]
+    else:
+      current_target_host_list = target_host_list
+      target_host_list = []
+    result = command(current_target_host_list, *args)
+    results.append(result)
+  return results
+
+def RunParallelCommands(hosts, command, *args):
+  return RunParallelCommandsInternal(hosts, 2000, command, *args)
+
+def FindSpitfireBinary(current_path):
+  index = current_path.find('google3')
+  index2 = current_path.find('regression-scripts')
+  if (index == -1) or (index2 != -1):
+    return '/home/build/static/projects_norep/platforms/networking/firefly/bin'
+  else:
+    return current_path[:index] + \
+           'google3/blaze-bin/platforms/networking/firefly/spitfire'
+
+
+def KillSpitfire(host):
+  global options
+  output_modifier = ' 2>&1 | sed -e \'s/^/%s:/\' ' % host
+  output_modifier += '-e \'/no process killed/d\' '
+  output_modifier += '-e \'/no process found/d\' '
+  output_modifier += '-e \'/Warning: Permanently added .* of known hosts/d\' '
+  command = 'killall spitfire_master spitfire_slave'
+  cmd = ('ssh -k -q root@%s \'%s\'  %s; ' %
+         (host, command, output_modifier))
+  # HACK: try to kill it twice to make sure.
+  # TODO(jiangbo): better to parse the result the only retry the failed hosts.
+  cmd += cmd
+  cmd += 'echo -n %s,; ' % (host)
+  logfile = open(options.logfile, 'a')
+  if logfile:
+    print >>logfile, cmd
+    logfile.close()
+  if (not options.dontrun):
+    p = subprocess.Popen(cmd, shell=True)
+    return p
+  else:
+    return None
+
+def KillAllSpitfireInternal(hosts):
+  processes = []
+  for host in hosts:
+    p = KillSpitfire(host)
+    processes.append(p)
+  for p in processes:
+    if (p != None): p.wait()
+
+def KillAllSpitfire(hosts):
+  RunParallelCommands(hosts, KillAllSpitfireInternal)
+
+def CheckSpitfire(host, executable):
+  output_modifier = ' 2>&1 | sed -e \'s/^/%s:/\' ' % (host)
+  output_modifier += '-e \'/Warning: Permanently added .* of known hosts/d\' '
+  command = 'ps -f -C ' + executable + ' | grep ' + executable
+  cmd = 'ssh -k -q root@%s \'%s\' %s' % (host, command, output_modifier)
+  logfile = open(options.logfile, 'a')
+  if logfile:
+    print >>logfile, cmd
+    logfile.close()
+  if (not options.dontrun):
+    p = subprocess.Popen(cmd, shell=True)
+    return p
+  else:
+    return None
+
+def CheckAllSpitfireInternal(hosts):
+  processes = []
+  for host in hosts:
+    p = CheckSpitfire(host, 'spitfire_master')
+    processes.append(p)
+  for p in processes:
+    if (p != None): p.wait()
+  for host in hosts:
+    p = CheckSpitfire(host, 'spitfire_slave')
+    processes.append(p)
+  for p in processes:
+    if (p != None): p.wait()
+
+def CheckAllSpitfire(hosts):
+  RunParallelCommands(hosts, CheckAllSpitfireInternal)
+
+def CopySpitfire(host, from_dir, dest_dir):
+  global options
+  output_modifier = ' 2>&1 | sed -e \'s/^/%s:/\' ' % (host)
+  output_modifier += '-e \'/Warning: Permanently added .* of known hosts/d\' '
+
+  # Create the directory.
+  command = 'mkdir -p %s;' % dest_dir
+  cmd = 'ssh -k -q root@%s \'%s\'  %s; ' % (host, command, output_modifier)
+
+  # Copy spitfire binaries.
+  spitfire_binaries = from_dir + '/spitfire_master ' + \
+                      from_dir + '/spitfire_slave '
+  cmd += 'scp -q %s root@%s:%s %s; ' % (spitfire_binaries, host,
+                                        dest_dir, output_modifier)
+  command = 'chmod 777 ' + dest_dir + '/spitfire_master ' + \
+            dest_dir + '/spitfire_slave'
+  cmd += 'ssh -k -q root@%s \'%s\' %s ; ' %  (host, command, output_modifier)
+
+  # print hostname when it is done.
+  cmd += 'echo -n %s,; ' % (host)
+
+  # Run the command.
+  logfile = open(options.logfile, 'a')
+  if logfile:
+    print >>logfile, cmd
+    logfile.close()
+  if (not options.dontrun):
+    p = subprocess.Popen(cmd, shell=True)
+    return p
+  else:
+    return None
+
+def CopyLibrary(host):
+  print "Copying libraries/creating devices is no longer necessary."
+  return None
+
+  output_modifier = ' 2>&1 | sed -e \'s/^/%s:/\' ' % (host)
+  output_modifier += '-e \'/Warning: Permanently added .* of known hosts/d\' '
+
+  # Copy mlx4 libs
+  command = 'mkdir -p %s;' % mlx4_lib_dest
+  cmd = 'ssh -k -q root@%s \'%s\'  %s; ' % (host, command, output_modifier)
+  cmd += 'scp -q %s root@%s:%s %s; ' % (mlx4_lib_src, host,
+                                        mlx4_lib_dest, output_modifier)
+  command = (
+      'modprobe ib_uverbs; '
+      'mkdir -p /data/firefly/dev/infiniband; '
+      'mkdir -p /data/firefly/dev/infiniband; '
+      'if [ ! -e /data/firefly/dev/infiniband/uverbs0 ] ; then '
+      '  mknod /data/firefly/dev/infiniband/uverbs0 c 231 192;'
+      'fi;'
+      'mkdir -p /data/firefly/etc/libibverbs.d; '
+      'echo -n \'driver mlx4\' >  /data/firefly/etc/libibverbs.d/mlx4.driver;'
+      'chmod 777 /data/firefly/dev/infiniband/uverbs0; '
+      'chmod 755 /data/firefly/etc/libibverbs.d/mlx4.driver; '
+      'chmod 755 %s/libmlx4-rdmav2.so' % mlx4_lib_dest)
+  cmd += 'ssh -k -q root@%s \'%s\' %s ; ' %  (host, command, output_modifier)
+  # print hostname when it is done.
+  cmd += 'echo -n %s,; ' % (host)
+
+  # Run the command.
+  logfile = open(options.logfile, 'a')
+  if logfile:
+    print >>logfile, cmd
+    logfile.close()
+  if (not options.dontrun):
+    p = subprocess.Popen(cmd, shell=True)
+    return p
+  else:
+    return None
+
+
+def CopySpitfireToAllHostsInternal(hosts, from_dir, dest_dir):
+  processes = []
+  for host in hosts:
+    p = CopySpitfire(host, from_dir, dest_dir)
+    processes.append(p)
+  for p in processes:
+    if (p != None): p.wait()
+
+def CopySpitfireToAllHosts(hosts, from_dir, dest_dir):
+  RunParallelCommands(hosts, CopySpitfireToAllHostsInternal, from_dir, dest_dir)
+
+def CopyLibraryToAllHostsInternal(hosts):
+  processes = []
+  for host in hosts:
+    p = CopyLibrary(host)
+    processes.append(p)
+  for p in processes:
+    if (p != None): p.wait()
+
+def CopyLibraryToAllHosts(hosts):
+  RunParallelCommands(hosts, CopyLibraryToAllHostsInternal)
+
+def PingHost(to_host):
+  command = ('ping -c 2 -w 5 %s > /dev/null; '
+             'if [ $? != 0 ]; then '
+             '  echo %s does not respond;'
+             'else '
+             '  echo %s is alive;'
+             'fi' % (to_host, to_host, to_host))
+  p = subprocess.Popen(command,
+                       shell=True,
+                       stdout=subprocess.PIPE)
+  #time.sleep(10)
+  #print 'killing dead slave hosts after 10 seconds'
+  #sys.stdout.flush()
+  #os.kill(p.pid, signal.SIGUSR1)
+  return p
+
+def PingHostsInternal(to_hosts, from_host='localhost'):
+  processes = {}
+  unresponsive_hosts_set = set()
+  for to_host in to_hosts:
+    # ignore ping localhost.
+    if to_host is from_host:
+      continue
+    p = PingHost(to_host)
+    processes[to_host] = p
+  for to_host in processes:
+    p = processes[to_host]
+    if (p != None):
+      (out, error)= p.communicate()
+      if out.find('is alive') == -1:
+        unresponsive_hosts_set.add(to_host)
+  return unresponsive_hosts_set
+
+def PingHosts(to_hosts):
+  unresponsive_hosts_set = set()
+  results = RunParallelCommands(to_hosts, PingHostsInternal)
+  for result in results:
+    unresponsive_hosts_set.update(result)
+  return unresponsive_hosts_set
+
+def CheckHost(host, master_host):
+  command = ('echo -n yeah ssh works,;'
+             'ping -c 2 -w 5 %s > /dev/null; '
+             'if [ $? != 0 ]; then '
+             '  ping -c 2 -w 5 %s > /dev/null; '
+             '  if [ $? != 0 ]; then '
+             '    echo -n %s does not respond,;'
+             '  else '
+             '    echo -n %s is alive,;'
+             '  fi;'
+             'else '
+             '  echo -n %s is alive,;'
+             'fi;'
+             'containerd_pid=$(pidof containerd);'
+             'if [ \"$containerd_pid\" == \"\" ] ; then '
+             '  echo -n containerd is not running,;'
+             'else '
+             '  echo -n containerd is running as $containerd_pid,;'
+             'fi;'
+             % (master_host, master_host, master_host,
+                master_host, master_host))
+
+  cmd =  'ssh -k -q root@%s \'%s\'; ' %  (host, command)
+  p = subprocess.Popen(cmd,
+                       shell=True,
+                       stdout=subprocess.PIPE)
+  return p
+
+def CheckHostsInternal(hosts, master_host):
+  processes = {}
+  unresponsive_hosts_set = set()
+  no_containerd_hosts_set = set()
+  no_ssh_hosts_set = set()
+  for host in hosts:
+    p = CheckHost(host, master_host)
+    processes[host] = p
+  for host in processes:
+    p = processes[host]
+    if (p != None):
+      out = error = ''
+      (out, error)= p.communicate()
+      #print host, 'OUT', out, 'ERROR', error
+      if out.find('ssh works') != -1:
+        if out.find('is alive') == -1:
+          unresponsive_hosts_set.add(host)
+        if out.find('containerd is running') == -1:
+          no_containerd_hosts_set.add(host)
+      else:
+        no_ssh_hosts_set.add(host)
+    else:
+      assert False #This is a bug.
+  #   print host,
+  # print "" # Add a new line to the stdout.
+  return (unresponsive_hosts_set, no_containerd_hosts_set, no_ssh_hosts_set)
+
+def CheckHosts(hosts, master_host):
+  unresponsive_hosts_set = set()
+  no_containerd_hosts_set = set()
+  no_ssh_hosts_set = set()
+  results = RunParallelCommands(hosts, CheckHostsInternal, master_host)
+  for result in results:
+    unresponsive_hosts_set.update(result[0])
+    no_containerd_hosts_set.update(result[1])
+    no_ssh_hosts_set.update(result[2])
+  return (unresponsive_hosts_set, no_containerd_hosts_set, no_ssh_hosts_set)
+
+
+def ParseCommandLineOpts():
+  time_stamp = strftime('%Y-%m-%d-%H:%M:%S', gmtime())
+  parser = OptionParser()
+  # parser.add_option('-v', '--verbose', action='store_true',
+  #                   dest='verbose', default=False,
+  #                   help='Print verbose logging messages')
+  parser.add_option('-l', '--logfile', action='store',
+                    dest='logfile',
+                    default='/tmp/spitfire_' + time_stamp + '_logs.txt',
+                    help='logfile name for the spitfire console log.')
+  parser.add_option('-k', '--kill', action='store_true',
+                    dest='kill', default=False,
+                    help='kill spitfire instances for the hosts '
+                    'specified in the config file. The list of hosts '
+                    'is the combination of all master/slaves of all the '
+                    'group specified in the config file')
+  parser.add_option('', '--nocontainer', action='store_true',
+                    dest='no_container', default=False,
+                    help='containerd is not running at the hosts.')
+  parser.add_option('-K', '--killall', action='store_true',
+                    dest='killall', default=False,
+                    help='kill all spitfire instances for all the hosts '
+                    'reachable by the master. The script ssh to the master '
+                    'and check the output of ibnodes for the full list '
+                    'of the hosts')
+  parser.add_option('-F', '--config-file', action='store',
+                    dest='config_file', default=None,
+                    help='Provides a config file to start the spitfire '
+                    'See /google/src/files/head/depot/google3/experimental/'
+                    'users/jiangbo/firefly/config for an example',
+                    metavar='FILE')
+  parser.add_option('--dontrun', action='store_true',
+                    dest='dontrun', default=False,
+                    help='Don\'t run the actual command, '
+                    'for debugging purpose only. ')
+  parser.add_option('--dontstart', action='store_true',
+                    dest='dontstart', default=False,
+                    help='Don\'t start test.')
+  parser.add_option('-i', '--ignore-unresponsive-hosts', action='store_true',
+                    dest='ignore_unresponsive_hosts', default=False,
+                    help='Continue to run the test even if some hosts are '
+                    'unresponsive. Better to be used with the -v option.')
+  parser.add_option('-c', '--copy', action='store_true',
+                    dest='copy_binary', default=False,
+                    help='copy spitfire binaries to all the hosts, and use '
+                    'this binary for testing. You may want to provide a path '
+                    'using \'-p\' opiton. By default, it copies the binary '
+                    'from /home/build/static/projects_norep/platforms/'
+                    'networking/firefly/bin '
+                    'directory. But if you are inside the peforce client, it '
+                    'will try to copy the binary from the blaze-bin directory '
+                    'of your client.')
+  parser.add_option('--local_binary_dir', action='store',
+                    dest='local_binary_dir', default=False,
+                    help='path to the spitfire binaries.')
+  parser.add_option('', '--copy_library', action='store_true',
+                    dest='copy_library', default=False,
+                    help='copy spitfire libraries to all the hosts.'
+                    'it copies the binary '
+                    'from /home/build/static/projects_norep/platforms/'
+                    'networking/firefly/bin '
+                    'directory to /data/firefly directory')
+  parser.add_option('-p', '--remote_path', action='store',
+                    dest='remote_path', default=None,
+                    help='The path to the spitfire binaries in the remote'
+                    'host. By default it\'s /data/firefly/bin')
+  parser.add_option('-m', '--master', action='store',
+                    dest='master_host', default=None,
+                    help='Set the maseter hostname. It should be used only '
+                    'when  \'-F\' option is not given.')
+  parser.add_option('-q', '--query', action='store_true',
+                    dest='query', default=False,
+                    help='used to discovery the whole ib cluster, '
+                    'Dump all the spitfire_master process')
+
+  (options, args) = parser.parse_args(sys.argv)
+  return (options, args)
+
+####################### Parse and check parameters ##########################
+(options,args) = ParseCommandLineOpts()
+
+spitfire_groups = [ ] # empty the groups.
+spitfire_masters = [ ]
+if (options.config_file != None):
+  execfile(options.config_file)
+elif (options.master_host != None):
+  master = SpitfireMaster(host=options.master_host)
+  spitfire_masters.append(master)
+else:
+  print ('Please use -F to specify a config file or -m to specify a host. '
+         '-h for help')
+  quit()
+
+if (options.remote_path != None):
+   remote_binary_dir = options.remote_path
+
+
+if options.copy_binary:
+  if options.local_binary_dir:
+    local_binary_dir = options.local_binary_dir
+  else:
+    local_binary_dir = FindSpitfireBinary(os.getcwd())
+  if ( not os.path.exists(local_binary_dir) or
+       not os.path.exists(local_binary_dir + '/spitfire_master') or
+       not os.path.exists(local_binary_dir + '/spitfire_slave')):
+    print ('Couldn\'t find spitfire_master or spitfire_slave under %s' %
+           local_binary_dir)
+    quit()
+
+if (remote_binary_dir == '/data/firefly/bin') and (options.copy_binary):
+  print 'You are trying to overwrite binary in /data/firefly/bin'
+  print ('If this is not what you want, you may want to '
+         'use -p option to specify the path in the remote host.')
+  var = raw_input('Please enter YES to confirm:')
+  var = var.strip()
+  var = var.upper()
+  if var != 'YES':
+    quit()
+
+######################## Starting of the Real Work ###########################
+# Initialize all the spitfire groups.
+for group in spitfire_groups:
+    group.Initialize()
+
+# Get the list of all hosts from the configration.
+all_hosts = [ ]
+for group in spitfire_groups:
+  all_hosts.extend(group.slaves)
+for master in spitfire_masters:
+  all_hosts.append(master.host)
+all_hosts_set = set(all_hosts)
+
+# Get the list of all hosts by probing the network.
+all_cluster_hosts = [ ]
+for master in spitfire_masters:
+  all_cluster_hosts.extend(master.GetAllHostNames())
+if not all_cluster_hosts:
+  all_cluster_hosts_set = all_hosts_set
+else:
+  all_cluster_hosts_set = set(all_cluster_hosts)
+
+print ('Total %d in the cluster. %d hosts will be used for testing.' % (
+    len(all_cluster_hosts_set), len(all_hosts_set)))
+
+
+# Check if these hosts can be ping from this host.
+all_ping_hosts_set = set()
+all_ping_hosts_set.update(all_cluster_hosts_set)
+all_ping_hosts_set.update(all_hosts_set)
+dead_hosts_set = PingHosts(all_ping_hosts_set)
+all_pingable_hosts_set = all_hosts_set.difference(dead_hosts_set)
+all_pingable_cluster_hosts_set = all_cluster_hosts_set.difference(
+    dead_hosts_set)
+
+
+# Check and dump if spitfire master can reach all the hosts in the cluster.
+print 'Start checking the health of the hosts. It may take a few minutes.'
+ping_master_failed_hosts_set = set()
+no_containerd_hosts_set = set()
+no_ssh_hosts_set = set()
+for master in spitfire_masters:
+  # Try pint the hosts from the master.
+  (ping_master_failed_hosts_set_tmp,
+   no_containerd_hosts_set_tmp,
+   no_ssh_hosts_set_tmp) = CheckHosts(all_pingable_cluster_hosts_set,
+                                      master.host)
+  ping_master_failed_hosts_set.update(ping_master_failed_hosts_set_tmp)
+  no_containerd_hosts_set.update(no_containerd_hosts_set_tmp)
+  no_ssh_hosts_set.update(no_ssh_hosts_set_tmp)
+
+all_sshable_hosts_set = all_pingable_hosts_set.difference(no_ssh_hosts_set)
+all_sshable_cluster_hosts_set = all_pingable_cluster_hosts_set.difference(
+    no_ssh_hosts_set)
+
+# Dump the check result.
+if dead_hosts_set or ping_master_failed_hosts_set or no_containerd_hosts_set:
+  print ('Among all hosts within the clusters,')
+  if dead_hosts_set:
+    print('The following hosts are dead (not pingable from this host): %s' %
+          ' '.join(list(dead_hosts_set)))
+  if no_ssh_hosts_set:
+    print ('Can not ssh to the following hosts: %s' %
+           ' '.join(list(no_containerd_hosts_set)))
+  if ping_master_failed_hosts_set:
+    print ('The following hosts can not ping master: %s' %
+           ' '.join(list(ping_master_failed_hosts_set)))
+  if no_containerd_hosts_set:
+    print ('The following hosts don\'t have containerd running: %s' %
+           ' '.join(list(no_containerd_hosts_set)))
+
+
+# Check if the host under test is dead/bad/unreachable.
+dead_test_hosts_set = all_hosts_set.intersection(dead_hosts_set)
+unknown_test_hosts_set = all_hosts_set.difference(all_cluster_hosts_set)
+no_containerd_test_hosts_set = all_hosts_set.intersection(
+    no_containerd_hosts_set)
+ping_master_failed_test_hosts_set = all_hosts_set.intersection(
+    ping_master_failed_hosts_set)
+if (dead_test_hosts_set or unknown_test_hosts_set or
+    no_containerd_test_hosts_set or ping_master_failed_test_hosts_set):
+  # if we only use partial of the network for testing, print what's wrong for
+  # the hosts under test.
+  if all_hosts_set != all_cluster_hosts_set:
+    print 'Among all the hosts under test,'
+    if dead_test_hosts_set:
+      print ('\tThe following hosts are dead '
+             '(not pingable from this host): %s' %
+             ' '.join(list(dead_test_hosts_set)))
+    if unknown_test_hosts_set:
+      print ('\tThe following hosts are not known to the master'
+             '(not shown in topology command): %s' %
+             ' '.join(list(unknown_test_hosts_set)))
+    if no_containerd_test_hosts_set:
+      print ('\tThe following hosts don\'t have container running: %s' %
+             ' '.join(list(no_containerd_test_hosts_set)))
+    if ping_master_failed_test_hosts_set:
+      print ('\tThe following hosts failed to ping the master: %s' %
+             ' '.join(list(ping_master_failed_test_hosts_set)))
+
+  if options.ignore_unresponsive_hosts != True:
+    print 'please fix the problem or ' \
+        'specify the -i option to ignore the dead/bad/unreachable hosts'
+    quit()
+
+all_good_test_hosts_set = all_hosts_set.difference(dead_test_hosts_set)
+all_good_test_hosts_set = all_good_test_hosts_set.difference(
+    unknown_test_hosts_set)
+
+if (options.no_container == False):
+  print 'remove no container hosts'
+  all_good_test_hosts_set = all_good_test_hosts_set.difference(
+      no_containerd_test_hosts_set)
+all_good_test_hosts_set = all_good_test_hosts_set.difference(
+    ping_master_failed_test_hosts_set)
+
+if (options.query == True):
+  CheckAllSpitfire(all_pingable_cluster_hosts_set)
+
+# Kill spitfire for all the hosts in the cluster.
+all_kill_hosts = set()
+if options.killall:
+  all_kill_hosts.update(all_sshable_cluster_hosts_set)
+if options.kill:
+  all_kill_hosts.update(all_sshable_hosts_set)
+if all_kill_hosts:
+  print '********* Start killing existing spitfire instances *********'
+  KillAllSpitfire(all_kill_hosts)
+  print ''
+
+# Copy the binaries and/or the libraries.
+if options.copy_binary:
+  print ('********* Start copying the binaries to %s of each host *********'%
+         remote_binary_dir)
+  CopySpitfireToAllHosts(all_sshable_hosts_set, local_binary_dir,
+                         remote_binary_dir)
+  print ''
+if options.copy_library:
+  print ('********* Start copying the required library '
+         'to /data/firefly of each host *********')
+  CopyLibraryToAllHosts(all_sshable_hosts_set)
+  print ''
+
+
+# TODO(jiangbo): Check if the spitfire binary are the same among
+# all the hosts under test
+
+# Start the generators and masters
+if options.dontstart:
+  print ('Ignore starting spitfire test as requested.')
+  quit()
+if len(spitfire_masters) and len(spitfire_groups):
+  for master in spitfire_masters:
+    if (master.host not in all_good_test_hosts_set and
+        options.ignore_unresponsive_hosts != True):
+      print 'Master %s is not in the good host list.' % master.host
+      quit()
+    master.Start()
+  for group in spitfire_groups:
+    group.RemoveSlaves(dead_test_hosts_set)
+    group.RemoveSlaves(unknown_test_hosts_set)
+    if not options.ignore_unresponsive_hosts:
+      group.RemoveSlaves(no_containerd_test_hosts_set)
+      group.RemoveSlaves(ping_master_failed_test_hosts_set)
+    group.Start()
+  print ('All master and slaves has been started, You may monitor '
+        'the status by visiting the following url within a few seconds.')
+  for master in spitfire_masters:
+    print 'http://%s/' % master.HostPort()
+  print ('Please find all the logs at "%s" if you '
+         'configured spitfire to print log into console.' %
+         options.logfile)

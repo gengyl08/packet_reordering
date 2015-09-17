@@ -1,0 +1,310 @@
+#rir!/usr/bin/python
+# Sample Spitfire config file.
+
+terry = 0
+topology = "2tor_u"
+tcp = 1
+torx = 4
+pings = False
+vlan_count = "4"
+vlan_min = "2"
+large_throughput = "1000"
+small_throughput = "200"
+large_size = "1000000"
+print topology + " throughput=" + large_throughput + " rpc=" + large_size
+small_size = "500"
+depth = "20"
+large_sample = "6"
+small_sample = "30"
+large_conn = "9"
+small_conn = "8"
+#roce_thr = int(large_throughput)
+roce_thr = int(large_throughput)/(int(large_conn)-1)
+print "roce_thr " + str(roce_thr) + " vlan_min:" + vlan_min + " vlan_count:" + vlan_count
+######################### Some Options ###################################
+# the following stuff has a corresponding command line switch
+# --kill
+#options.killall=True
+options.local_binary_dir="/home/build/static/projects_norep/platforms/networking/firefly/bin"
+# --copy
+#options.copy_binary=True
+# --path
+options.remote_path="/data/firefly/bin"
+#options.remote_path="/data/jupiter/bin/spitfire-1.2-test"
+# --verbose
+#options.verbose=True
+
+###################### Some Common Flags #######################################
+common_flags = "-stderrthreshold=3 "
+
+common_master_flags = common_flags
+common_master_flags += "--unresponsive_slave_threshold=200 "
+#common_master_flags += "--logtostderr -v=-1 --vmodule=spitfire_master_impl=1 "
+
+common_slave_flags = common_flags
+#common_slave_flags += "--no_keepalive "
+#common_slave_flags += "--logtostderr -v=1 "
+#common_slave_flags += "--vmodule=spitfire_slave_impl=1 "
+
+hosts = [ "clca1", "clca2", "clca4", "clca5", "clca6", "clca7", "clca8", "clca9", "clca10", "clca11", "clca12", "clca13", "clca14", "clca15", "clca16", "clca17", "clcb1", "clcb2", "clcb3", "clcb4", "clcb5", "clcb6", "clcb7", "clcb8", "clcb9", "clcb10", "clcb11", "clcb12", "clcb13", "clcb14", "clcb15", "clcb16", "clcd1", "clcd2", "clcd3", "clcd4", "clcd5", "clcd6", "clcd7", "clcd8", "clcd9", "clcd10", "clcd11", "clcd12", "clcd13", "clcd14", "clcd15", "clcd16", "clce1", "clce2", "clce3", "clce4", "clce5", "clce6", "clce7", "clce8", "clce9", "clce10", "clce11", "clce12", "clce13", "clce14", "clce15", "clce16", "clcf1", "clcf2", "clcf3", "clcf4", "clcf5", "clcf6", "clcf7", "clcf8", "clcf9", "clcf10", "clcf11", "clcf12", "clcf13", "clcf14", "clcf15", "clcf16", "clcf17", "clcg1", "clcg2", "clcg3", "clcg4", "clcg5", "clcg6", "clcg7", "clcg8", "clcg9", "clcg10", "clcg11", "clcg12", "clcg13", "clcg14", "clcg15", "clcg16", "clch1", "clch2", "clch3", "clch4", "clch5", "clch6", "clch7", "clch8", "clch9", "clch10", "clch11", "clch12", "clch13", "clch14", "clch15", "clch16", "clci1", "clci2", "clci3", "clci4", "clci5", "clci6", "clci7", "clci8", "clci9", "clci10", "clci11", "clci12", "clci13", "clci14", "clci15", "clci16", ]
+
+ToR1 = [  "192.168.1.1", "192.168.1.2", "192.168.1.3", "192.168.1.4", "192.168.1.5", "192.168.1.6", "192.168.1.7", "192.168.1.8", "192.168.1.9", "192.168.1.10",  ]
+ToR2 = [  "192.168.2.1", "192.168.2.2", "192.168.2.3", "192.168.2.4", "192.168.2.5", "192.168.2.6", "192.168.2.7", "192.168.2.8", "192.168.2.9", "192.168.2.10",  ]
+ToR3 = [  "192.168.3.1", "192.168.3.2", "192.168.3.3", "192.168.3.4", "192.168.3.5", "192.168.3.6", "192.168.3.7", "192.168.3.8", "192.168.3.9", "192.168.3.10",  ]
+ToR4 = [  "192.168.4.1", "192.168.4.2", "192.168.4.3", "192.168.4.4", "192.168.4.5", "192.168.4.6", "192.168.4.7", "192.168.4.8", "192.168.4.9", "192.168.4.10",  ]
+ToR5 = [  "192.168.5.1", "192.168.5.2", "192.168.5.3", "192.168.5.4", "192.168.5.5", "192.168.5.6", "192.168.5.7", "192.168.5.8", "192.168.5.9", "192.168.5.10",  ]
+ToR6 = [  "192.168.6.1", "192.168.6.2", "192.168.6.3", "192.168.6.4", "192.168.6.5", "192.168.6.6", "192.168.6.7", "192.168.6.8", "192.168.6.9", "192.168.6.10",  ]
+ToR7 = [  "192.168.7.1", "192.168.7.2", "192.168.7.3", "192.168.7.4", "192.168.7.5", "192.168.7.6", "192.168.7.7", "192.168.7.8", "192.168.7.9", "192.168.7.10",  ]
+ToR8 = [  "192.168.8.1", "192.168.8.2", "192.168.8.3", "192.168.8.4", "192.168.8.5", "192.168.8.6", "192.168.8.7", "192.168.8.8", "192.168.8.9", "192.168.8.10",  ]
+ToR9 = [  "192.168.9.1", "192.168.9.2", "192.168.9.3", "192.168.9.4", "192.168.9.5", "192.168.9.6", "192.168.9.7", "192.168.9.8", "192.168.9.9", "192.168.9.10",  ]
+ToR10 = [  "192.168.10.1", "192.168.10.2", "192.168.10.3", "192.168.10.4", "192.168.10.5", "192.168.10.6", "192.168.10.7", "192.168.10.8", "192.168.10.9", "192.168.10.10",  ]
+ToR11 = [  "192.168.11.1", "192.168.11.2", "192.168.11.3", "192.168.11.4", "192.168.11.5", "192.168.11.6", "192.168.11.7", "192.168.11.8", "192.168.11.9", "192.168.11.10",  ]
+ToR12 = [  "192.168.12.1", "192.168.12.2", "192.168.12.3", "192.168.12.4", "192.168.12.5", "192.168.12.6", "192.168.12.7", "192.168.12.8", "192.168.12.9", "192.168.12.10",  ]
+ToR13 = [  "192.168.13.1", "192.168.13.2", "192.168.13.3", "192.168.13.4", "192.168.13.5", "192.168.13.6", "192.168.13.7", "192.168.13.8", "192.168.13.9", "192.168.13.10",  ]
+
+hosts_9_10=[ "bigmac-9-1", "bigmac-9-2", "bigmac-9-3", "bigmac-9-4", "bigmac-9-5", "bigmac-9-6", "bigmac-9-7", "bigmac-9-8", "bigmac-9-9", "bigmac-9-10", "bigmac-10-1", "bigmac-10-2", "bigmac-10-3", "bigmac-10-4", "bigmac-10-5", "bigmac-10-6", "bigmac-10-7", "bigmac-10-8", "bigmac-10-9", "bigmac-10-10", ]
+#hosts_1 = ["bigmac-1-1", "bigmac-1-2", "bigmac-1-3", "bigmac-1-4", "bigmac-1-5", "bigmac-1-6", "bigmac-1-7", "bigmac-1-8", "bigmac-1-9", "bigmac-1-10", ]
+#hosts_2 = ["bigmac-2-1", "bigmac-2-2", "bigmac-2-3", "bigmac-2-4", "bigmac-2-5", "bigmac-2-6", "bigmac-2-7", "bigmac-2-8", "bigmac-2-9", "bigmac-2-10", ]
+#hosts_4 = ["bigmac-4-1", "bigmac-4-2", "bigmac-4-3", "bigmac-4-4", "bigmac-4-5", "bigmac-4-6", "bigmac-4-7", "bigmac-4-8", "bigmac-4-9", "bigmac-4-10", ]
+#hosts_5 = ["bigmac-5-1", "bigmac-5-2", "bigmac-5-3", "bigmac-5-4", "bigmac-5-5", "bigmac-5-6", "bigmac-5-7", "bigmac-5-8", "bigmac-5-9", "bigmac-5-10", ]
+#hosts_6 = ["bigmac-6-1", "bigmac-6-2", "bigmac-6-3", "bigmac-6-4", "bigmac-6-5", "bigmac-6-6", "bigmac-6-7", "bigmac-6-8", "bigmac-6-9", "bigmac-6-10", ]
+#hosts_9 = ["bigmac-9-1", "bigmac-9-2", "bigmac-9-3", "bigmac-9-4", "bigmac-9-5", "bigmac-9-6", "bigmac-9-7", "bigmac-9-8", "bigmac-9-9", "bigmac-9-10", ]
+hosts_yu = ["yua1", "yua5", "yua6", "yua8", "yua30", "yua11", "yua34", "yua33", "yua37", "yua31", "yua32", "yua36", "yua38", "yua35", "yua41", "yua40", "yua60", "yua62", "yua64", "yua61", "yua59", "yua63", "yua65", "yua66", "yua67", "yua89", "yua90", "yua69", "yua68", "yua91", "yua88", "yua93", "yua70", "yua92", "yua94", "yua95", "yua98", "yub1", "yub5", "yub7", "yub2", "yub6", "yub8", "yub9", "yub10", "yub30", "yub35", "yub36", "yub32", "yub34", "yub33", "yub37", "yub39", "yub38", "yub61", "yub60", "yub41", "yub63", "yub40", "yub62", "yub66", "yub64", "yub65", "yub69", "yub67", "yub68", "yub70", "yub88", "yub91", "yub89", "yub92", "yub95", "yub93", "yub94", "yub97", "yub96", "yuc1", "yub98", "yuc4", "yuc3", "yuc8", "yuc6", "yuc9", "yuc7", "yuc11", "yuc31", "yuc10", "yuc32", "yuc35", "yuc30", "yuc33", "yuc38", "yuc34", "yuc41", "yuc36", "yuc37", "yuc60", "yuc40", "yuc61", "yuc63", "yuc59", "yuc65", "yuc62", "yuc64", "yuc70", "yuc67", "yuc89", "yuc66", "yuc68", "yuc69", "yuc88", "yuc93", "yuc95", "yuc91", "yuc94", "yud2", "yud1", "yuc97", "yuc98", "yud4", "yud3", "yud6", "yud40", "yud5", "yud65", "yud96", ]
+hosts_yz = ["yza4", "yza6", "yza5", "yza7", "yza9", "yza10", "yza11", "yza62", "yza66", "yza63", "yza64", "yza67", "yza68", "yza69", "yza65", "yza71", "yza123", "yza72", "yza70", "yza73", "yza127", "yza124", "yza132", "yza125", "yza126", "yza134", "yza129", "yza131", "yza130", "yza187", "yza128", "yza133", "yza184", "yza185", "yza189", "yza186", "yzb4", "yza195", "yzb6", "yzb65", "yzb62", "yza188", "yzb64", "yzb12", "yzb69", "yza194", "yzb68", "yzb70", "yzb67", "yzb7", "yza190", "yzb9", "yzb8", "yza191", "yzb63", "yzb71", "yzb73", "yzb66", "yzb123", "yzb125", "yzb72", "yzb127", "yzb124", "yzb126", "yzb130", "yzb131", "yzb128", "yzb132", "yzb134", "yzb187", "yzb184", "yzb185", "yzb186", "yzb190", "yzb188", "yzb189", "yzb192", "yzb194", "yzb195", "yzb191", "yzb193", "yzc4", "yzc8", "yzc6", "yzc11", "yzc10", "yzc12", "yzc62", "yzc9", "yzc65", "yzc63", "yzc68", "yzc66", "yzc64", "yzc70", "yzc69", "yzc123", "yzc67", "yzc71", "yzc72", "yzc126", "yzc73", "yzc124", "yzc128", "yzc127", "yzc130", "yzc129", "yzc134", "yzc184", "yzc132", "yzc185", "yzc189", "yzc186", "yzc190", "yzc187", "yzc193", "yzc195", "yzc191", "yzc194", "yzd3", "yzd8", "yzd67", "yzd126", "yzd191", ]
+hosts_clha = ["clha1", "clha2", "clha3", "clha4", "clha5", "clha6", "clha9", "clha10", "clha12", "clha13", "clha15", "clha16", ]
+hosts_clhc = ["clhc1", "clhc7", "clhc14", "clhc5", "clhc6", "clhc8", "clhc9", "clhc10", "clhc12", "clhc13", "clhc7", "clhc16", ]
+hosts_7 = ["bigmac-7-1", "bigmac-7-2", "bigmac-7-3", "bigmac-7-4", "bigmac-7-5", "bigmac-7-6", "bigmac-7-7", "bigmac-7-9", "bigmac-7-10", ]
+hosts_8 = ["bigmac-8-1", "bigmac-8-3", "bigmac-8-4", "bigmac-8-5", "bigmac-8-6", "bigmac-8-7", "bigmac-8-8", "bigmac-8-9", "bigmac-8-10", ]
+hosts_10 = ["bigmac-10-1", "bigmac-10-2", "bigmac-10-3", "bigmac-10-4", "bigmac-10-5", "bigmac-10-7", "bigmac-10-8", "bigmac-10-9", "bigmac-10-10", ]
+hosts_11 = ["bigmac-11-1", "bigmac-11-2", "bigmac-11-3", "bigmac-11-5", "bigmac-11-7", "bigmac-11-8", "bigmac-11-9", "bigmac-11-6", ]
+#hosts_11 = ["bigmac-11-1", "bigmac-11-2", ]
+
+hosts_1 = ["bigmac-1-1", "bigmac-1-2", "bigmac-1-3", "bigmac-1-4", "bigmac-1-5", "bigmac-1-6", "bigmac-1-7", "bigmac-1-8", "bigmac-1-9", ]
+#hosts_1 = ["bigmac-1-1", "bigmac-1-2", "bigmac-1-3", "bigmac-1-4", "bigmac-1-6", "bigmac-1-7", "bigmac-1-8", "bigmac-1-5", ]
+#hosts_1 = ["bigmac-1-1", "bigmac-1-2", ]
+hosts_2 = ["bigmac-2-1", "bigmac-2-2", "bigmac-2-3", "bigmac-2-4", "bigmac-2-5", "bigmac-2-6", "bigmac-2-7", "bigmac-2-8", "bigmac-2-9", ]
+#hosts_2 = ["bigmac-2-2", "bigmac-2-3", "bigmac-2-6", "bigmac-2-8", "bigmac-2-9", ]
+hosts_4 = ["bigmac-4-1", "bigmac-4-2", "bigmac-4-3", "bigmac-4-4", "bigmac-4-5", "bigmac-4-6", "bigmac-4-7", "bigmac-4-8", "bigmac-4-9", ]
+hosts_5 = ["bigmac-5-1", "bigmac-5-2", "bigmac-5-3", "bigmac-5-4", "bigmac-5-5", "bigmac-5-6", "bigmac-5-7", "bigmac-5-8", "bigmac-5-9", ]
+hosts_6 = ["bigmac-6-1", "bigmac-6-2", "bigmac-6-3", "bigmac-6-4", "bigmac-6-5", "bigmac-6-6", "bigmac-6-7", "bigmac-6-8", "bigmac-6-9", ]
+hosts_9 = ["bigmac-9-1", "bigmac-9-2", "bigmac-9-3", "bigmac-9-4", "bigmac-9-5", "bigmac-9-6", "bigmac-9-7", "bigmac-9-9", "bigmac-9-8", ]
+hosts_4_6 = ["bigmac-6-1", "bigmac-6-2", "bigmac-6-3", "bigmac-6-4", "bigmac-6-5", "bigmac-6-6", "bigmac-6-7", "bigmac-6-8", "bigmac-6-9", "bigmac-6-10", "bigmac-4-1", "bigmac-4-2", "bigmac-4-3", "bigmac-4-4", "bigmac-4-5", "bigmac-4-6", "bigmac-4-7", "bigmac-4-8", "bigmac-4-9", "bigmac-4-10",]
+
+hosts_segfault = ["bigmac-5-2", "bigmac-5-3", "bigmac-5-4", ]
+tor1 = "clca1,clcb1,clcd1,clce1,clca2,clcb2,clcd2,clce2,clca3,clcb3"#
+tor1 = "clca1,clcb1,clcd1,clce1,clca2,clcb2,clcd2,clce2,clca3"
+#tor1 = "clca2,clca3,clcb2,clce1,clcb1"
+#tor1 = "192.168.1.1,192.168.1.2,192.168.1.3,192.168.1.4,192.168.1.5,192.168.1.6,192.168.1.7,192.168.1.8,192.168.1.9"
+tor2 = "clcd3,clce3,clca4,clcb4,clcd4,clce4,clca5,clcb5,clcd5,clce5"#
+tor2 = "clcd3,clce3,clca4,clcb4,clcd4,clce4,clca5,clcb5,clcd5"
+#tor2 = "clce3,clca4,clce4,clcb5,clcd5"
+#tor2 = "192.168.2.1,192.168.2.2,192.168.2.3,192.168.2.4,192.168.2.5,192.168.2.6,192.168.2.7,192.168.2.8,192.168.2.9"
+tor3 = "clca6,clcb6,clcd6,clce6,clca7,clcb7,clcd7,clce7,clca8,clcb8"
+tor3up = "clca6,clcb6,clcd6,clce6,clca7,clcb7,clcb8"
+tor4 = "clcd8,clce8,clca9,clcb9,clcd9,clce9,clca10,clcb10,clcd10,clce10"#
+tor4 = "clcd8,clce8,clca9,clcb9,clcd9,clce9,clca10,clcb10,clcd10"
+tor5 = "clcb11,clca11,clcd11,clce11,clca12,clcb12,clcd12,clce12,clca13,clcb13"#
+tor5 = "clcb11,clca11,clcd11,clce11,clca12,clcb12,clcd12,clce12,clca13"
+tor5a = "clcb11,clca11,clcd11,clce11,clca12,clcb12,clcd12,clce12"
+tor5b = "clca13"
+tor6 = "clce13,clca14,clcb14,clcd14,clce14,clcd13,clca15,clcb15,clcd15,clce15"#
+tor6 = "clce13,clca14,clcb14,clcd14,clce14,clcd13,clca15,clcb15,clcd15"
+tor6a = "clce13,clca14,clcb14,clcd14,clce14,clcd13,clca15,clcb15"
+tor6b = "clcd15"
+tor9 = "clci6,clcf7,clci4,clcf5,clcg5,clch5,clci5,clcf6,clcg6,clch6"#
+tor9 = "clci6,clcf7,clci4,clcf5,clcg5,clch5,clci5,clcf6,clcg6"
+tor7 = "clca16,clcb16,clcd16,clce16,clca17,clcf1,clcg1,clci1,clcf2"
+tor7a = "clca16,clcb16,clcd16,clce16,clca17,clcf1,clcg1,clci1"
+tor7b = "clcf2"
+tor8 = "clcg2,clci2,clcf3,clcg3,clch3,clci3,clcf4,clcg4,clch4"
+tor10 = "clcg7,clch7,clci7,clcf8,clcg8,clci8,clcf9,clcg9,clch9"
+clhc = "clha1,clha2,clha3,clha4,clha5,clha6,clha9,clha10"
+clha = "clhc1,clhc7,clhc14,clhc5,clhc6,clhc8,clhc9,clhc10"
+yu = "yua1,yua5,yua6,yua8,yua30,yua11,yua34,yua33,yua37,yua31,yua32,yua36,yua38,yua35,yua41,yua40,yua60,yua62,yua64,yua61,yua59,yua63,yua65,yua66,yua67,yua89,yua90,yua69,yua68,yua91,yua88,yua93,yua70,yua92,yua94,yua95,yua98,yub1,yub5,yub7,yub2,yub6,yub8,yub9,yub10,yub30,yub35,yub36,yub32,yub34,yub33,yub37,yub39,yub38,yub61,yub60,yub41,yub63,yub40,yub62,yub66,yub64,yub65,yub69,yub67,yub68,yub70,yub88,yub91,yub89,yub92,yub95,yub93,yub94,yub97,yub96,yuc1,yub98,yuc4,yuc3,yuc8,yuc6,yuc9,yuc7,yuc11,yuc31,yuc10,yuc32,yuc35,yuc30,yuc33,yuc38,yuc34,yuc41,yuc36,yuc37,yuc60,yuc40,yuc61,yuc63,yuc59,yuc65,yuc62,yuc64,yuc70,yuc67,yuc89,yuc66,yuc68,yuc69,yuc88,yuc93,yuc95,yuc91,yuc94,yud2,yud1,yuc97,yuc98,yud4,yud3,yud6,yud40,yud5,yud65,yud96"
+yz = "yza4,yza6,yza5,yza7,yza9,yza10,yza11,yza62,yza66,yza63,yza64,yza67,yza68,yza69,yza65,yza71,yza123,yza72,yza70,yza73,yza127,yza124,yza132,yza125,yza126,yza134,yza129,yza131,yza130,yza187,yza128,yza133,yza184,yza185,yza189,yza186,yzb4,yza195,yzb6,yzb65,yzb62,yza188,yzb64,yzb12,yzb69,yza194,yzb68,yzb70,yzb67,yzb7,yza190,yzb9,yzb8,yza191,yzb63,yzb71,yzb73,yzb66,yzb123,yzb125,yzb72,yzb127,yzb124,yzb126,yzb130,yzb131,yzb128,yzb132,yzb134,yzb187,yzb184,yzb185,yzb186,yzb190,yzb188,yzb189,yzb192,yzb194,yzb195,yzb191,yzb193,yzc4,yzc8,yzc6,yzc11,yzc10,yzc12,yzc62,yzc9,yzc65,yzc63,yzc68,yzc66,yzc64,yzc70,yzc69,yzc123,yzc67,yzc71,yzc72,yzc126,yzc73,yzc124,yzc128,yzc127,yzc130,yzc129,yzc134,yzc184,yzc132,yzc185,yzc189,yzc186,yzc190,yzc187,yzc193,yzc195,yzc191,yzc194,yzd3,yzd8,yzd67,yzd126,yzd191"
+yuz = yu
+clhac = clha + clhc
+ping_hosts = "clcb3,clce5,clce10,clcb13,clce15,clch6"
+hosts_akabbani = hosts_7 + hosts_5
+hosts_akabbani = hosts_clha + hosts_clhc
+hosts_akabbani = hosts_yu 
+tora = tor5a
+torb = tor7a
+torab_pings = "clcb14,clce11"
+clhc_pings = "clha12,clha13,clha15,clha16"
+clha_pings = "clhc12,clhc13,clhc7,clhc16"
+clhac_pings = clha_pings + "," + clhc_pings
+yu_pings = "yua5"
+yz_pings = "yub5"
+yuz_pings = yu_pings + "," + yz_pings
+
+akabbani_master = "clhc11"
+akabbani_master = "yua3"
+
+if topology == "pair_u":
+  hosts_akabbani = ["bigmac-5-1", "bigmac-6-2", ]
+  bidirectional = True
+  pings = False
+  hosts_akabbani_dest_1 = "clca1"
+  hosts_akabbani_source_1 = "clca2"
+  hosts_akabbani_dest_1 = "clce13"
+  hosts_akabbani_source_1 = "clca11"
+
+if topology == "pair_b":
+  hosts_akabbani = hosts_1
+  bidirectional = True
+  pings = False
+  hosts_akabbani_dest_1 = "clca1"
+  hosts_akabbani_source_1 = "clca2"
+
+if topology == "1tor_u":
+  hosts_akabbani = hosts_4
+  bidirectional = False
+  hosts_akabbani_dest_1 = "clcd8,clce8,clca9,clcb9,clcd9"
+  hosts_akabbani_source_1 = "clce9,clca10,clcb10,clcd10,clce10"
+
+if topology == "1tor_a":
+  if (torx == 1):
+    hosts_akabbani = hosts_1
+    akabbani_master = "bigmac-1-10"
+  if (torx == 2):
+    hosts_akabbani = hosts_2
+    akabbani_master = "bigmac-2-10"
+  if (torx == 3):
+    hosts_akabbani = hosts_3
+    akabbani_master = "bigmac-3-10"
+  if (torx == 4):
+    hosts_akabbani = hosts_4
+    akabbani_master = "bigmac-4-10"
+    hosts_akabbani = hosts_clha + hosts_clhc
+    hosts_akabbani = hosts_yu 
+    akabbani_master = "clha10"
+    akabbani_master = "yua3"
+  if (torx == 5):
+    hosts_akabbani = hosts_5
+    akabbani_master = "bigmac-5-10"
+  if (torx == 6):
+    hosts_akabbani = hosts_6
+    akabbani_master = "bigmac-6-10"
+  if (torx == 7):
+    hosts_akabbani = hosts_7
+    akabbani_master = "bigmac-7-10"
+  if (torx == 8):
+    hosts_akabbani = hosts_8
+    akabbani_master = "bigmac-8-10"
+  if (torx == 9):
+    hosts_akabbani = hosts_9
+    akabbani_master = "bigmac-9-10"
+  if (torx == 10):
+    hosts_akabbani = hosts_10
+    akabbani_master = "bigmac-10-10"
+  if (torx == 11):
+    hosts_akabbani = hosts_11
+    akabbani_master = "bigmac-11-10"
+  bidirectional = False
+  hosts_akabbani_dest_1 = clha
+  hosts_akabbani_source_1 = hosts_akabbani_dest_1
+  hosts_akabbani_dest_1 = yu
+  hosts_akabbani_source_1 = hosts_akabbani_dest_1
+
+if topology == "2tor_a":
+  bidirectional = False
+  hosts_akabbani_dest_1 = tora + "," + torb
+  hosts_akabbani_source_1 = hosts_akabbani_dest_1
+  ping_hosts = torab_pings 
+
+if topology == "2tor_u":
+  bidirectional = False
+  hosts_akabbani_dest_1 = clha
+  hosts_akabbani_source_1 = clhc
+  ping_hosts = clhac_pings
+  hosts_akabbani_dest_1 = yu
+  hosts_akabbani_source_1 = yu
+  ping_hosts = yuz_pings
+
+if topology == "2tor_b":
+  bidirectional = True
+  hosts_akabbani_dest_1 = tora 
+  hosts_akabbani_source_1 = torb
+  ping_hosts = torab_pings
+  hosts_akabbani_dest_1 = clha
+  hosts_akabbani_source_1 = clhc
+  ping_hosts = clhac_pings
+  hosts_akabbani_dest_1 = yu
+  hosts_akabbani_source_1 = yu
+  ping_hosts = yuz_pings
+if topology == "3tor":
+  hosts_akabbani = hosts_5 + hosts_6 + hosts_7
+  bidirectional = False
+  hosts_akabbani_dest_1 = tor5 + "," + tor6 + "," + tor7
+  hosts_akabbani_source_1 = hosts_akabbani_dest_1
+
+if topology == "6tor":
+  hosts_akabbani = hosts_5 + hosts_6 + hosts_7 + hosts_1 + hosts_2
+  bidirectional = False
+  hosts_akabbani_dest_1 = tor5 + "," + tor6 + "," + tor7 + tor1 + "," + tor2
+  hosts_akabbani_source_1 = hosts_akabbani_dest_1
+
+if topology == "9tor":
+  hosts_akabbani = hosts_1 + hosts_2 + hosts_4 + hosts_5 + hosts_6 + hosts_7 + hosts_8 + hosts_9 + hosts_10
+  bidirectional = False
+  hosts_akabbani_dest_1 = tor1 + "," + tor2 + "," + tor10 + "," + tor4 + "," + tor5 + "," + tor6 + "," + tor7 + "," + tor8 + "," + tor9
+  hosts_akabbani_source_1 = hosts_akabbani_dest_1
+
+if topology == "7tor":
+  hosts_akabbani = hosts_1 + hosts_2 + hosts_4 + hosts_5 + hosts_6 + hosts_9 + hosts_10
+  bidirectional = False
+  hosts_akabbani_dest_1 = tor1 + "," + tor2 + "," + tor10 + "," + tor4 + "," + tor5 + "," + tor6 + "," + tor9
+  hosts_akabbani_source_1 = hosts_akabbani_dest_1
+
+clha = 'clha1 clha2 clha3 clha4 clha5 clha6 clha7 clha8 clha9 clha10 clha12 clha13 clha14 clha15 clha16 clha17 clha18 clha19'.split()
+clhc = 'clhc1 clhc2 clhc3 clhc4 clhc5 clhc6 clhc7 clhc8 clhc10 clhc13 clhc15 clhc16 clhc17 clhc18 clhc19 clhc20'.split()
+#################### Define the Master #######################################
+# the config file is actually a python script.
+# Define the Master
+master = SpitfireMaster(host="clha11", port=8888)
+master.flags = common_master_flags
+AddMaster(master)
+
+def generateBigMacHosts():
+  hosts = []
+  for tor in range(1, 11):
+    for host in range(1, 11):
+      hosts.append("bigmac-%d-%d" % (tor, host))
+  return hosts
+
+hosts_all_bigmac = generateBigMacHosts()
+
+ip_hosts=ToR1 + ToR2 + ToR3 + ToR4 + ToR5 + ToR6 +ToR7 +ToR8 +ToR9 + ToR10 + ToR11 + ToR12 + ToR13
+################## All to All TCP test  #################################
+tcpload_group = SpitfireGroup(master, name="TCP_LOAD", port=9995, generator="tcp_load_2")
+tcpload_group.slaves = clha + clhc
+tcpload_group.common_flags += common_slave_flags
+tcpload_group.common_flags += "--tcp_load_2_request_size=10 "
+tcpload_group.common_flags += "--tcp_load_2_response_size=" + large_size + " "
+tcpload_group.common_flags += "--tcp_load_2_report_latency "
+tcpload_group.common_flags += "--tcp_load_2_tx_depth=" + depth + " "
+tcpload_group.common_flags += "--tcp_load_2_num_sockets_per_conn=" + large_conn + " "
+tcpload_group.common_flags += "--tcp_load_2_heart_beat_seconds=" + large_sample + " "
+tcpload_group.common_flags += "--traffic_tx_throughput=" + large_throughput + " "
+tcpload_group.common_flags += "--sources=" + ','.join(clhc) + " "
+tcpload_group.common_flags += "--destinations=" + ','.join(clha) + " "
+if (tcp):
+  AddGroup(tcpload_group)
+if (tcp and pings):
+  tcpload_group2 = SpitfireGroup(master, name="TCP_LOAD2", port=9997, generator="tcp_load_2")
+  tcpload_group2.slaves = hosts_akabbani
+  tcpload_group2.common_flags += common_slave_flags
+  tcpload_group2.common_flags += "--tcp_load_2_request_size=10 "
+  tcpload_group2.common_flags += "--tcp_load_2_response_size=" + small_size + " "
+  tcpload_group2.common_flags += "--tcp_load_2_report_latency "
+  tcpload_group2.common_flags += "--tcp_load_2_tx_depth=1000 "
+  tcpload_group2.common_flags += "--tcp_load_2_num_sockets_per_conn=" + small_conn + " "
+  tcpload_group2.common_flags += "--tcp_load_2_heart_beat_seconds=" + small_sample + " "
+  tcpload_group2.common_flags += "--traffic_tx_throughput=" + small_throughput + " "
+  tcpload_group2.common_flags += "--sources=" + ping_hosts + " "
+  tcpload_group2.common_flags += "--sources=" + yu_pings + " "
+  tcpload_group2.common_flags += "--destinations=" + ping_hosts + " "
+  tcpload_group2.common_flags += "--destinations=" + yz_pings + " "
+
+  AddGroup(tcpload_group2)

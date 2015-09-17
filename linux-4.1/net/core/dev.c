@@ -4000,6 +4000,7 @@ static struct sk_buff* dev_gro_complete(struct napi_struct *napi, struct sk_buff
 
 		if (flushed) {
 			ofo_queue->timestamp = timestamp;
+			ofo_queue->flushed = true;
 		}
 
 		if (p == NULL) {
@@ -4330,6 +4331,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 				if (!ofo_queue->hash) {
 					ofo_queue->seq_next = NAPI_GRO_CB(skb)->seq;
+					ofo_queue->flushed = false;
 				}
 
 				if (before(NAPI_GRO_CB(skb)->seq, ofo_queue->seq_next)) {
@@ -4395,6 +4397,7 @@ normal:
 			if (ofo_queue->seq_next != seq_next) {
 				ofo_queue->seq_next = seq_next;
 				ofo_queue->timestamp = ktime_to_ns(ktime_get());
+				ofo_queue->flushed = true;
 			}
 		}
 		printk(KERN_NOTICE "normal qlen %u skb %u\n", NAPI_GRO_CB(skb)->len, 1);

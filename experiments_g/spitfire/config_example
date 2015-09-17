@@ -1,0 +1,123 @@
+#!/usr/bin/python
+# Copyright 2010, Google, Inc
+# author: Jiangbo Li (jiangbo@google.com)
+# Sample Spitfire config file.
+
+######################### Some Options ###################################
+# the following stuff has a corresponding command line switch
+# --kill
+#options.kill=True
+# --copy
+#options.copy_binary=True
+# --path
+#options.path="/data/jiangbo/spitfire"
+# --verbose
+#options.verbose=True
+# --ignore-unresponsive-hosts
+#options.ignore_unresponsive_hosts=True
+
+###################### Some Common Flags #######################################
+# ssh_user="prodbin2"    # By default, script use prodbin2 to ssh to the hosts
+# binary_path="/data/firefly/bin" #default spitfire binary path in the hosts.
+# The following command line paramters are always added automatically.
+#    --rpc_security_protocol= --rpc_use_default_security=
+#    --rpc_default_rate_acl=INSECURE
+
+common_flags = "-stderrthreshold=3 "
+
+common_master_flags = common_flags
+common_master_flags += "--unresponsive_slave_threshold=200 "
+#common_master_flags += "--logtostderr -v=-1 --vmodule=spitfire_master_impl=1 "
+
+common_slave_flags = common_flags
+#common_slave_flags += "--no_keepalive "
+#common_slave_flags += "--logtostderr -v=-1 "
+#common_slave_flags += "--vmodule=send-completion-queue=1 "
+#common_slave_flags += "--vmodule=rdma_load_generator=1 "
+#common_slave_flags += "--vmodule=spitfire_slave_impl=1 "
+
+#################### Define the Master #######################################
+# the config file is actually a python script.
+# Define the Master
+master = SpitfireMaster(host="lpi3", port=8888)
+master.flags = common_master_flags
+AddMaster(master)
+
+################## One-to-One RDMA test  #################################
+# In this example, by default, all hosts in the specified slave list
+# don't send any traffic because the common flags
+# has "--destinations none"
+# Only  lpi2  -> lpi29
+#       lpi25 -> lpi34
+#       lpi32 -> lpi37
+#       lpi15 -> lpi38
+rdma_group = SpitfireGroup(master, name="RDMA_LOAD", port=9990,
+                           generator="rdma_load")
+rdma_group.common_flags += "--rdma_load_tx_depth=100 "
+rdma_group.common_flags += "--rdma_load_message_size=409600 "
+rdma_group.common_flags += "--rdma_load_base_sl=0 "
+rdma_group.common_flags += "--rdma_load_memsize=10000000 "
+rdma_group.common_flags += "--ib_mtu=4096 "
+# It is very important to make the default "none" so that we don't need to
+# specify the per_host_flags for sinks.
+rdma_group.common_flags += "--destinations none "
+rdma_group.common_flags += common_slave_flags
+# The final flag for each slave is common_flags + per_host_flags[host]
+rdma_group.per_host_flags['lpi2'] = "--destinations lpi29"
+rdma_group.per_host_flags['lpi25'] = "--destinations lpi34"
+rdma_group.per_host_flags['lpi32'] = "--destinations lpi37"
+rdma_group.per_host_flags['lpi15'] = "--destinations lpi38"
+# You have to add the group, otherwise it doesn't work.
+# Also you may comment/uncomment the following signel line to
+# disable/enable a group.
+#AddGroup(rdma_group)
+
+###################### Sources-to-Sinks for UD Load ###########################
+# In this example, you didn't specify the list of slaves, but you specifies
+# both the sources and sinks using --sources and --destinations options.
+# The script is able to figure out the slave list. Note that both
+# --sources and --destinations should be used to enable the script to
+# figure out the slaves automatically.
+ud_load_group = SpitfireGroup(master, name="UD_LOAD", port=9991,
+                              generator="ud_load")
+ud_load_group.common_flags += "--ud_load_tx_depth=900 "
+ud_load_group.common_flags += "--ud_load_message_size=2048 "
+ud_load_group.common_flags += "--ud_load_num_sls=1 "
+ud_load_group.common_flags += "--ud_load_rx_depth=800 "
+ud_load_group.common_flags += "--traffic_tx_throughput=1000 "
+ud_load_group.common_flags += " --sources lpi2,lpi25,lpi32,lpi15,lpi29 "
+ud_load_group.common_flags += " --destinations lpi29,lpi34,lpi37,lpi38 "
+ud_load_group.common_flags += common_slave_flags
+#AddGroup(ud_load_group)
+
+################# All-to-All RDMA Pinger test ##########################
+rdma_pinger_group = SpitfireGroup(master, name="RDMA_PINGER", port=9992,
+                                  generator="rdma_pinger")
+# If you don't specify any host in the group config, the script put all
+# the nodes, which is the output of ibnodes run on the master host, into
+# the slave list.
+# In this example, it is a all to all communication for all the hosts in
+# the cluster.
+rdma_pinger_group.common_flags += "--rdma_pinger_stats_size=40 "
+rdma_pinger_group.common_flags += common_slave_flags
+#AddGroup(rdma_pinger_group)
+
+####################### All "lpe" hosts All-to-All RDMA test ###################
+rdma_all2all_group = SpitfireGroup(master, name="RDMA_All2All_LOAD",
+                                   port=9990,
+                                   generator="rdma_load")
+rdma_all2all_group.slaves = master.GetAllHostNames()
+rdma_all2all_group.common_flags += "--rdma_load_tx_depth=100 "
+rdma_all2all_group.common_flags += "--rdma_load_message_size=409600 "
+rdma_all2all_group.common_flags += "--rdma_load_base_sl=0 "
+rdma_all2all_group.common_flags += "--rdma_load_memsize=10000000 "
+rdma_all2all_group.common_flags += "--ib_mtu=4096 "
+rdma_all2all_group.common_flags += common_slave_flags
+# By use the filter, we only use the hosts whose name matches the following
+# string.
+rdma_all2all_group.FilterSlaves("lpe")
+rdma_all2all_group.per_host_flags['lpe10'] = "--logtostderr -v=-1 "
+rdma_all2all_group.per_host_flags['lpe10'] += "--no_keepalive "
+rdma_all2all_group.per_host_flags['lpe10'] += "--vmodule=send-completion-queue=1 "
+rdma_all2all_group.per_host_flags['lpe10'] += "--vmodule=rdma_load_generator=1 "
+#AddGroup(rdma_all2all_group)

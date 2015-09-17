@@ -1,0 +1,182 @@
+tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+8	0.041	0.141	0.0971	0.0975	0.1033	0.1242	0.14002
+tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+8	0.059	0.153	0.08966	0.089	0.094	0.1086	0.13879
+16	0.06	0.118	0.0841	0.083	0.0896	0.0951	0.11359
+24	0.063	0.132	0.0925	0.09	0.0973	0.1131	0.12857
+32	0.065	0.136	0.09362	0.089	0.096	0.118	0.136
+40	0.042	0.192	0.09336	0.092	0.1003	0.1114	0.1626
+45	0.04	0.125	0.08572	0.085	0.0926	0.1131	0.125
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.045	0.103	0.08514	0.087	0.09	0.0952	0.103
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.062	0.174	0.09652	0.089	0.0989	0.1389	0.17204
+4	16	0.042	0.445	0.1938	0.148	0.2513	0.3673	0.44353
+4	24	0.073	0.63	0.20368	0.1495	0.2373	0.3668	0.60991
+4	32	0.075	0.705	0.21954	0.144	0.2742	0.4441	0.68099
+4	40	0.062	0.334	0.1162	0.0945	0.133	0.1658	0.30656
+4	45	0.066	0.618	0.21068	0.1515	0.2323	0.4294	0.61702
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.07	0.392	0.1204	0.0975	0.1183	0.1936	0.35035
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.068	0.896	0.29026	0.2505	0.3671	0.5648	0.79016
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.07	0.702	0.22354	0.1535	0.2835	0.4308	0.68534
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.053	0.972	0.33088	0.308	0.4871	0.5701	0.92447
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.183	1.0	0.44994	0.399	0.5192	0.7705	0.97403
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.202	1.01	0.42706	0.384	0.517	0.6308	0.961
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.12	0.679	0.31512	0.272	0.3462	0.5784	0.67018
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.193	0.987	0.44664	0.352	0.5462	0.829	0.93702
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.17	0.501	0.24982	0.22	0.2704	0.3361	0.44318
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.213	1.1	0.44064	0.3805	0.4765	0.7824	1.0951
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.179	0.521	0.25918	0.2275	0.263	0.3604	0.46906
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.194	0.64	0.26126	0.224	0.2612	0.3488	0.55474
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.186	0.576	0.25458	0.2235	0.2413	0.3362	0.52945
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	45	0.189	0.364	0.28422	0.2975	0.3139	0.3441	0.364
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	45	0.186	0.358	0.23288	0.22	0.2342	0.2932	0.34673
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	45	0.192	0.398	0.24468	0.2225	0.2352	0.3251	0.38281
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	45	0.121	0.368	0.22684	0.212	0.2312	0.3225	0.36457
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.196	0.357	0.2683	0.282	0.3096	0.3242	0.34916
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	2	0.138	0.278	0.2088	0.2085	0.215	0.2296	0.278
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	2	0.182	0.287	0.21154	0.21	0.214	0.2182	0.27524
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	2	0.135	0.264	0.20714	0.2095	0.2123	0.215	0.24734
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	2	0.119	0.24	0.20966	0.2105	0.214	0.218	0.23559
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	4	0.174	0.348	0.23672	0.2205	0.2333	0.3148	0.34751
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.202	0.439	0.28812	0.2685	0.3349	0.3723	0.42871
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.206	0.419	0.29	0.303	0.329	0.3731	0.40969
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.119	0.517	0.28032	0.26	0.3179	0.3856	0.47486
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.187	0.531	0.31462	0.317	0.3444	0.4427	0.52806
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.171	0.486	0.31566	0.3235	0.3525	0.3903	0.44974
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.173	0.523	0.300554	0.302	0.349	0.392	0.48716
+4	16	0.166	0.641	0.320684	0.317	0.3573	0.418	0.58102
+4	32	0.169	0.736	0.28537	0.2495	0.312	0.4001	0.59103
+4	40	0.175	0.917	0.330132	0.296	0.369	0.5491	0.72454
+4	45	0.132	0.385	0.2635	0.2495	0.302	0.331	0.36003
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	0.117	0.516	0.284386	0.2725	0.328	0.386	0.46105
+4	16	0.141	0.648	0.311936	0.312	0.354	0.4361	0.57701
+4	32	0.132	0.715	0.26484	0.2335	0.295	0.3751	0.57117
+4	40	0.155	0.814	0.302056	0.2415	0.336	0.4587	0.72601
+4	45	0.142	0.363	0.246416	0.231	0.267	0.3141	0.34002
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99
+4	8	102	3399	1741.006	1785.0	2054.2	2449.1	3038.03
+4	16	194	4322	2134.478	2213.0	2695.6	3310.7	3946.1
+4	32	41	6147	1432.186	1001.5	1794.0	3138.9	4797.42
+4	40	4	7729	2204.214	2062.5	2875.3	4199.3	6678.53
+4	45	279	1550	836.706	864.0	957.0	1105.0	1325.02
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+4	8	117	3109	1675.534	1717.5	2006.3	2379.0	2935.19	97.17	795033.05	102308.433333	96328.5	11718.6333333	7.77094345106	106267.45	7.78333333333	3.95
+4	16	302	4768	2863.116	2960.0	3271.3	3733.3	4453.56	105.52	805388.933333	160638.0	155081.766667	29049.3833333	5.01368874944	54217.1333333	74.2666666667	73.5666666667
+4	32	28	6511	2862.13	2849.5	3477.7	4307.1	5552.84	109.49	773395.05	197850.283333	193588.466667	48581.4333333	3.90899136948	43646.1166667	659.383333333	641.633333333
+4	40	8	8213	2867.836	2818.5	3592.5	4584.9	6004.87	107.67	731070.633333	200256.883333	197351.283333	51541.15	3.65066419273	54552.15	1179.01666667	1156.75
+4	45	270	1324	890.986	916.5	1013.3	1236.1	1321.0	84.5	809567.85	53667.0333333	40943.0333333	0.8	15.0850121521	18122.1833333	0.0666666666667	0.0666666666667
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+4	8	74	3400	1790.736	1877.0	2155.6	2528.2	3173.11	109.94	780102.566667	122350.15	109675.066667	15732.9666667	6.37598373739	104765.133333	26.2	8.03333333333
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+4	8	275	3351	1941.69	1923.5	2186.3	2552.0	2962.14	109.4	793935.966667	108946.916667	102473.716667	12709.25	7.28736517708	106203.866667	3.2	2.2
+4	16	389	4848	2743.138	2816.0	3190.6	3743.7	4451.19	116.44	799719.15	145067.216667	136808.25	23036.6833333	5.5127489751	54383.7166667	56.1166666667	54.85
+4	32	128	5906	2906.768	2958.0	3563.4	4266.6	5216.63	116.88	778075.483333	157669.933333	151648.916667	31407.5333333	4.9348373966	42646.35	300.15	287.366666667
+4	40	19	1875	325.698	281.5	358.6	612.1	1347.59	93.08	809552.533333	53048.5	43775.9833333	150.166666667	15.2606112017	36118.15	0.0166666666667	0.0
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	8	16	285	91.11	85.5	108.3	144.0	200.16	99.72	809562.833333	51105.95	49173.4833333	4.66666666667	15.8408724098	108162.75	0.0166666666667	0.0166666666667
+3	16	14	312	134.764	131.5	169.0	222.1	265.14	97.3	809555.333333	53096.15	49614.3	1.36666666667	15.2469686283	54131.5166667	0.0333333333333	0.0333333333333
+3	32	15	594	192.334	198.5	245.0	321.1	388.04	95.4	809568.883333	53002.7	47301.6666667	8.1	15.2741064763	36129.5833333	0.0166666666667	0.0166666666667
+3	40	20	1067	261.708	255.5	316.0	465.0	738.35	92.3	809516.933333	52763.4833333	44736.35	51.5	15.342370939	36127.9666667	0.0166666666667	0.0166666666667
+3	45	14	816	298.91	273.0	365.2	660.2	811.03	97.73	812943.1	51702.55	46623.3333333	0.0333333333333	15.7234623824	18122.2666667	0.0333333333333	0.0333333333333
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	8	0.173	0.309	0.21923	0.218	0.224	0.235	0.29901	99.06	812930.483333	50514.8333333	48925.15	6.61666666667	16.092906374	108158.033333	0.0166666666667	0.0166666666667
+3	16	0.164	0.31	0.22172	0.2185	0.226	0.2411	0.30001	98.48	809562.783333	53110.0333333	49941.1833333	0.616666666667	15.2431232391	54130.2	0.0833333333333	0.0833333333333
+3	32	0.093	0.344	0.223354	0.218	0.226	0.2581	0.30401	97.22	809566.2	53784.1666667	48052.2833333	3.78333333333	15.0521287244	36127.1833333	0.0166666666667	0.0166666666667
+3	40	0.143	0.429	0.220448	0.215	0.222	0.252	0.33103	92.78	809462.833333	52716.5666667	44874.4333333	84.85	15.3549990926	36139.6666667	0.0	0.0
+3	45	0.174	0.355	0.232982	0.219	0.235	0.301	0.33201	94.16	809563.566667	53280.3666667	43093.9	0.0	15.1944068203	18103.6166667	0.0	0.0
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	45	0.166	0.39	0.225146	0.218	0.225	0.2661	0.33002	142.55	568455.483333	246850.766667	228987.45	104080.566667	2.30283053607	84538.7166667	1314.98333333	339.516666667
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	4	0.108	0.418	0.226384	0.214	0.2213	0.2972	0.37501	147.41	566017.75	279554.933333	251017.983333	118406.066667	2.0247102895	108538.7	1177.05	274.216666667
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	4	0.125	0.596	0.226422	0.214	0.22	0.2952	0.391	147.81	569027.866667	280887.083333	250962.766667	118081.6	2.02582425619	112216.316667	1242.31666667	250.633333333
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	4	0.145	0.462	0.229564	0.217	0.23	0.2961	0.37307	144.29	660581.183333	238381.416667	238278.75	115290.516667	2.77111023405	14862.0333333	9.03333333333	5.26666666667
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	4	0.152	0.407	0.236494	0.219	0.236	0.3134	0.37401	138.0	660690.766667	221515.633333	221473.733333	106840.316667	2.98259204881	14813.2333333	0.0	0.0
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	4	0.142	0.417	0.232848	0.218	0.234	0.3051	0.37509	142.15	660216.55	229536.366667	229290.266667	110983.15	2.87630478598	15226.8	7.31666666667	3.36666666667
+num_flows	tso_segs	rtt_min	rtt_max	rtt_mean	rtt_50	rtt_70	rtt_90	rtt_99	cpu_result	InPkts_receiver	InSegs_receiver	OutSegs_receiver	TCPOFOQueue_receiver	batch_ratio	OutSegs_sender	RetransSegs_sender	TCPDSACKRecv_sender
+3	4	0.144	0.471	0.235122	0.221	0.241	0.3011	0.37801	141.29	660227.566667	228977.266667	228827.183333	110626.983333	2.88337604985	15024.0166667	3.88333333333	1.11666666667

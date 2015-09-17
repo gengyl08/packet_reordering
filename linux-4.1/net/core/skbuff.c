@@ -3232,7 +3232,8 @@ void skb_gro_flush(struct sk_buff_head_gro *ofo_queue, struct sk_buff *skb) {
 
         timestamp = ktime_to_ns(ktime_get());
         printk(KERN_INFO "queue age: %llu\n", timestamp - ofo_queue->timestamp);
-		ofo_queue->timestamp = timestamp;
+	ofo_queue->timestamp = timestamp;
+	ofo_queue->flushed = true;
 
         while (p != NULL) {
 

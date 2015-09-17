@@ -208,6 +208,7 @@ struct sk_buff_head_gro {
         __u32                                           qlen;
         __u32                                           skb_num;
         __u32                                           seq_next;
+	bool						flushed;
 };
 
 struct sk_buff;
