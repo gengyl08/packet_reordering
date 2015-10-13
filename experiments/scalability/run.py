@@ -4,27 +4,21 @@ import subprocess
 import time
 import math
 
-tors_sender = [1, 4]
-tor_receiver = 9
+tors_sender = [1, 2, 3, 4, 7 ,8 ,9, 12]
+tor_receiver = 5
 servers = {}
 for tor in tors_sender:
-	with open('/usr/local/google/home/akabbani/yilong_files/bigmac{}servers'.format(tor), 'r') as f:
+	with open('bigmac-{}-servers'.format(tor), 'r') as f:
 		servers[tor] = f.readline().split()
 
 servers_all = None
-with open('/usr/local/google/home/akabbani/yilong_files/multiflowservers_all', 'r') as f:
+with open('bigmacservers_all', 'r') as f:
 	servers_all = f.readline().split()
 
-receiver = 'bigmac-9-2'
-receiver_ip = '192.168.9.2'
+receiver = 'bigmac-5-4'
+receiver_ip = '192.168.5.4'
 
-#init_cmd_gkernel = 'chmod 777 /sys/class/net/eth*/plb_enable; echo 1 > /sys/class/net/eth0/plb_enable; echo 1 > /sys/class/net/eth1/plb_enable; echo 1 > /sys/class/net/eth2/plb_enable; chmod 444 /sys/class/net/eth*/plb_enable; cat /sys/class/net/*/plb_enable; sysctl -w net.ipv4.tcp_congestion_control=dctcp; sysctl -w net.ipv4.tcp_gcn=0; sysctl -w net.ipv4.tcp_ecn=1; /usr/local/bin/container.py run --update --network-max=10000 sys /bin/true; sysctl -w net.ipv4.tcp_recovery=0; service network glag-disable;'
-
-#init_cmd_receiver = 'sysctl -w net.ipv4.tcp_congestion_control=dctcp; echo 13000 > /sys/class/net/eth0/gro_flush_timeout; echo 13000 > /sys/class/net/eth1/gro_flush_timeout; echo 100000 > /sys/class/net/eth0/gro_ofo_timeout; echo 100000 > /sys/class/net/eth1/gro_ofo_timeout; echo 20000 > /sys/class/net/eth0/gro_inseq_timeout; echo 20000 > /sys/class/net/eth1/gro_inseq_timeout; cat /sys/class/net/eth0/gro_flush_timeout; cat /sys/class/net/eth1/gro_flush_timeout; cat /sys/class/net/eth0/gro_ofo_timeout; cat /sys/class/net/eth1/gro_ofo_timeout; cat /sys/class/net/eth0/gro_inseq_timeout; cat /sys/class/net/eth1/gro_inseq_timeout; echo 000010 > /proc/irq/{irq[0]}/smp_affinity; echo 4 > /proc/irq/{irq[0]}/smp_affinity_list; echo 000020 > /proc/irq/{irq[1]}/smp_affinity; echo 5 > /proc/irq/{irq[1]}/smp_affinity_list; echo 000400 > /proc/irq/{irq[2]}/smp_affinity; echo 10 > /proc/irq/{irq[2]}/smp_affinity_list; echo 000800 > /proc/irq/{irq[3]}/smp_affinity; echo 11 > /proc/irq/{irq[3]}/smp_affinity_list; echo 010000 > /proc/irq/{irq[4]}/smp_affinity; echo 16 > /proc/irq/{irq[4]}/smp_affinity_list; echo 020000 > /proc/irq/{irq[5]}/smp_affinity; echo 17 > /proc/irq/{irq[5]}/smp_affinity_list; echo 400000 > /proc/irq/{irq[6]}/smp_affinity; echo 22 > /proc/irq/{irq[6]}/smp_affinity_list; echo 800000 > /proc/irq/{irq[7]}/smp_affinity; echo 23 > /proc/irq/{irq[7]}/smp_affinity_list;'
-
-#netperf = '/usr/local/google/home/ygeng/nettools/netperf -T {receiver_cores[CORE]} -H {receiver} -l 9999 & '
-
-init_cmd = 'echo 13000 > /sys/class/net/eth2/gro_flush_timeout; echo 15000 > /sys/class/net/eth2/gro_inseq_timeout; echo 50000 > /sys/class/net/eth2/gro_ofo_timeout; cat /sys/class/net/eth2/gro_flush_timeout; cat /sys/class/net/eth2/gro_inseq_timeout; cat /sys/class/net/eth2/gro_ofo_timeout;'
+init_cmd = 'echo 13000 > /sys/class/net/eth2/gro_flush_timeout; echo 15000 > /sys/class/net/eth2/gro_inseq_timeout; echo 50000 > /sys/class/net/eth2/gro_ofo_timeout; cat /sys/class/net/eth2/gro_flush_timeout; cat /sys/class/net/eth2/gro_inseq_timeout; cat /sys/class/net/eth2/gro_ofo_timeout; tc qdisc del root dev eth2; tc qdisc add dev eth2 root handle 1: htb default 12; tc class add dev eth2 parent 1: classid 1:1 htb rate {0}kbps ceil {0}kbps; tc class add dev eth2 parent 1:1 classid 1:10 htb rate {0}kbps ceil {0}kbps; tc filter add dev eth2 protocol ip parent 1:0 prio 1 u32 match ip dst 192.168.5.0/24 flowid 1:10;'.format(70000)
 
 def init():
 	print subprocess.check_output(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d0.1', '-m {}'.format(' '.join(servers_all)), init_cmd])
@@ -39,7 +33,7 @@ def start_background():
 		for i in range(2):
 			receivers_background.append(servers[tor][i])
 
-	p_background_receiver = subprocess.Popen(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d1', '-m {}'.format(' '.join(receivers_background)), '/data/nettools/iperf -s'])
+	p_background_receiver = subprocess.Popen(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d0.1', '-m {}'.format(' '.join(receivers_background)), '/data/nettools/iperf -s'])
 	
 	time.sleep(10)
 
@@ -49,120 +43,44 @@ def start_background():
 		for k in range(2):
 			sender_tmp = servers[tors_sender[i]][k+2]
 			receiver_ip_tmp = '192.168.{}.{}'.format(tors_sender[j], servers[tors_sender[j]][k].split('-')[-1])
-			p_tmp = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{0} /data/nettools/iperf -c {1} -i 1 -t 9999'.format(sender_tmp, receiver_ip_tmp).split())
+			p_tmp = subprocess.Popen('runlocalssh googlesh -uroot -corp -d0.1 -m{0} /data/nettools/iperf -c {1} -i 1 -t 9999'.format(sender_tmp, receiver_ip_tmp).split())
 			p_background_senders.append(p_tmp)
-		
+	time.sleep(10)		
 
-def start_traffic():
+
+def start_traffic(flow_num):
 	p_receivers = []
 	for i in range(len(tors_sender)):
-		p_tmp = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{0} /data/nettools/iperf -s -p {1}'.format(receiver, 5001+i).split())
+		p_tmp = subprocess.Popen('runlocalssh googlesh -uroot -corp -d0.1 -m{} taskset -c {} /data/nettools/iperf -s -p {}'.format(receiver, 24+i, 5001+i).split())
 		p_receivers.append(p_tmp)
 	time.sleep(10)
 
 	p_senders = []
 	for i in range(len(tors_sender)):
-		p_tmp = subprocess.Popen(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d1', '-m {}'.format(' '.join(servers[tors_sender[i]])),
-			'/data/nettools/iperf -c {} -i 1 -t 9999 -p {} -P {}'.format(receiver_ip, 5001+i)])
-
-def measure(kernel, flow_num):
-
-	print '>>>>>>>>>> Kill netperf'
-	print subprocess.check_output(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d1', '-m {}'.format(senders), 'killall netperf'])
-
-        # googledist netperf to senders and receiver
-        print '>>>>>>>>>> googledist netperf to senders and receiver'
-        print subprocess.check_output(['runlocalssh', 'googledist', '-uroot', '-m {}'.format(senders), '/usr/local/google/home/ygeng/nettools'])
-        print subprocess.check_output(['runlocalssh', 'googledist', '-uroot', '-m {}'.format(receiver), '/usr/local/google/home/ygeng/nettools'])
-
-
-	print '>>>>>>>>>> Measuring with {} flows from {} senders'.format(flow_num * len(senders.split()), len(senders.split()))
-
-	# get ip adress of sender and receiver
-	print '>>>>>>>>>> Get IP addresses of sender and receiver'
-	sender_ip = subprocess.check_output('runlocalssh googlesh -uroot -corp -d1 -m{0} grep {0} /etc/hosts'.format(senders.split()[0]).split()).split('\n')[1].split()[1]
-	receiver_ip = subprocess.check_output('runlocalssh googlesh -uroot -corp -d1 -m{0} grep {0} /etc/hosts'.format(receiver).split()).split('\n')[1].split()[1]
-	print sender_ip
-	print receiver_ip
-
-	# start receiver
-	print '>>>>>>>>>> Start receiver'
-	print subprocess.check_output('runlocalssh googlesh -uroot -corp -d1 -m{0} /usr/local/google/home/ygeng/nettools/netserver'.format(receiver).split())
-
-	# start senders
-	print '>>>>>>>>>> Start sender'
-	netperfs = ''
-	for i in range(flow_num):
-		netperfs += netperf.replace('CORE', str(i))
-	receiver_cores_circle = receiver_cores * int(math.ceil(flow_num * len(senders.split()) / float(16)))
-	for i in range(len(senders.split())):
-		print subprocess.check_output(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d1', '-m {}'.format(senders.split()[i]), netperfs.format(receiver=receiver, receiver_cores=receiver_cores_circle[flow_num * i : flow_num * (i + 1)])])
+		p_tmp = subprocess.Popen(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d0.1', '-m {}'.format(' '.join(servers[tors_sender[i]][0:8])),
+			'/data/nettools/iperf -c {} -i 1 -t 9999 -p {} -P {}'.format(receiver_ip, 5001+i, flow_num)])
+		p_senders.append(p_tmp)
 	time.sleep(10)
 
-	# measure receiver cpu
-	print '>>>>>>>>>> Measure receiver cpu'
-	receiver_cpu_thread = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{} mpstat -P ALL 60 1'.format(receiver).split(), stdout=subprocess.PIPE)
+def start_measurement():
+	p_cpu = subprocess.Popen('runlocalssh googlesh -uroot -corp -d0.1 -m{} mpstat -P ALL 10 1'.format(receiver).split(), stdout=subprocess.PIPE)
+	p_tput = subprocess.Popen('runlocalssh googlesh -uroot -corp -d0.1 -m{} sar -n DEV 10 1'.format(receiver).split(), stdout=subprocess.PIPE)
 
-	# pull receiver's counters
-	print '>>>>>>>>>> Measure receiver counters'
-	receiver_counter_thread = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{} /usr/local/google/home/ygeng/nettools/receiver.py 60 1'.format(receiver).split(), stdout=subprocess.PIPE)
-
-	# pull sender's counters
-	print '>>>>>>>>>> Measure sender counters'
-	sender_counter_thread = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{} /usr/local/google/home/ygeng/nettools/sender.py 60 1'.format(senders.split()[0]).split(), stdout=subprocess.PIPE)
-
-	# wait for experiment to end
-	cpu, err = receiver_cpu_thread.communicate()
-	counters_receiver, err = receiver_counter_thread.communicate()
-	counters_sender, err = sender_counter_thread.communicate()
-	print '>>>>>>>>>> End measurement'
-
-	# dump trace
-	print '>>>>>>>>>> Start tcpdump'
-	receiver_tcpdump_thread = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{} /usr/local/google/home/ygeng/nettools/tcpdump -s 128 -c 10000 -w /root/traces/multi_to_one_spray/{} host {}'.format(receiver, kernel + '_' + str(len(senders.split())) + '_' + str(flow_num), sender_ip).split())
-	sender_tcpdump_thread = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{} /usr/local/google/home/ygeng/nettools/tcpdump -s 128 -c 10000 -w /root/traces/multi_to_one_spray/{} host {}'.format(senders.split()[0], kernel + '_' + str(len(senders.split())) + '_' + str(flow_num), receiver_ip).split())
-	receiver_tcpdump_thread.communicate()
-	sender_tcpdump_thread.communicate()
-	print '>>>>>>>>>> End tcpdump'
-
-	print '>>>>>>>>>> Kill netperf'
-	print subprocess.check_output(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d1', '-m {}'.format(senders), 'killall netperf'])
-
-	# calculate results
+	cpu, err = p_cpu.communicate()
+	tput, err = p_tput.communicate()
+	cpu = 100 - float([line for line in cpu.split('\n') if 'all' in line][-1].split()[-2])
+	tput = float([line for line in tput.split('\n') if 'eth2' in line][-1].split()[5]) * 8 * math.pow(2, 10)
 	print cpu
-	print counters_receiver
-	print counters_sender
-
-	cpu_result = 100 * 24 - sum([float(x.split()[-2]) for x in cpu.split('\n')[-25:-1]])
-
-	InPkts_receiver = sum([int(x.split()[-1]) for x in counters_receiver.split('\n') if 'InPkts' in x]) / float(60)
-	InSegs_receiver = sum([int(x.split()[-1]) for x in counters_receiver.split('\n') if 'InSegs' in x]) / float(60)
-	OutSegs_receiver = sum([int(x.split()[-1]) for x in counters_receiver.split('\n') if 'OutSegs' in x]) / float(60)
-	TCPOFOQueue_receiver = sum([int(x.split()[-1]) for x in counters_receiver.split('\n') if 'TCPOFOQueue' in x]) / float(60)
-	batch_ratio = InPkts_receiver / InSegs_receiver
-
-	OutSegs_sender = sum([int(x.split()[-1]) for x in counters_sender.split('\n') if 'OutSegs' in x]) / float(60)
-	RetransSegs_sender = sum([int(x.split()[-1]) for x in counters_sender.split('\n') if 'RetransSegs' in x]) / float(60)
-	TCPDSACKRecv_sender = sum([int(x.split()[-1]) for x in counters_sender.split('\n') if 'TCPDSACKRecv' in x]) / float(60)
-
-	print cpu_result
-	print InPkts_receiver
-	print InSegs_receiver
-	print OutSegs_receiver
-	print TCPOFOQueue_receiver
-	print batch_ratio
-	print OutSegs_sender
-	print RetransSegs_sender
-	print TCPDSACKRecv_sender
-
-	return cpu_result, InPkts_receiver, InSegs_receiver, batch_ratio, TCPOFOQueue_receiver, OutSegs_receiver, OutSegs_sender, RetransSegs_sender, TCPDSACKRecv_sender
-
+	print tput
 
 def main():
 	init()
 	killall_iperf()
-	start_background()
+	#start_background()
+	start_traffic(1)
 	time.sleep(120)
+	killall_iperf()
+	#start_measurement()
 
 	"""
 	# reset senders
