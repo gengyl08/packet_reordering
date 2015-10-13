@@ -30,8 +30,8 @@ def init():
 	print subprocess.check_output(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d0.1', '-m {}'.format(' '.join(servers_all)), init_cmd])
 
 def killall_iperf():
-	print subprocess.check_output(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d0.1', '-m {}'.format(' '.join(servers_all)), 'killall iperf'])
-
+	print subprocess.check_output(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d0.1', '-m {}'.format(' '.join(servers_all)), 'killall iperf; sleep 2; killall iperf;'])
+	time.sleep(2)
 
 def start_background():
 	receivers_background = []
@@ -39,7 +39,7 @@ def start_background():
 		for i in range(2):
 			receivers_background.append(servers[tor][i])
 
-	p_background_receiver = subprocess.Popen(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d1', '-m {}'.format(' '.join(receivers_background)), 'killall iperf; sleep 1; /data/nettools/iperf -s'])
+	p_background_receiver = subprocess.Popen(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d1', '-m {}'.format(' '.join(receivers_background)), '/data/nettools/iperf -s'])
 	
 	time.sleep(10)
 
@@ -52,6 +52,18 @@ def start_background():
 			p_tmp = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{0} /data/nettools/iperf -c {1} -i 1 -t 9999'.format(sender_tmp, receiver_ip_tmp).split())
 			p_background_senders.append(p_tmp)
 		
+
+def start_traffic():
+	p_receivers = []
+	for i in range(len(tors_sender)):
+		p_tmp = subprocess.Popen('runlocalssh googlesh -uroot -corp -d1 -m{0} /data/nettools/iperf -s -p {1}'.format(receiver, 5001+i).split())
+		p_receivers.append(p_tmp)
+	time.sleep(10)
+
+	p_senders = []
+	for i in range(len(tors_sender)):
+		p_tmp = subprocess.Popen(['runlocalssh', 'googlesh', '-uroot', '-corp', '-d1', '-m {}'.format(' '.join(servers[tors_sender[i]])),
+			'/data/nettools/iperf -c {} -i 1 -t 9999 -p {} -P {}'.format(receiver_ip, 5001+i)])
 
 def measure(kernel, flow_num):
 
