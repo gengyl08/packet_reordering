@@ -293,9 +293,48 @@ struct netdev_boot_setup {
 
 int __init netdev_boot_setup(char *str);
 
+enum {
+	ACTIVE_LIST = 0,
+	INACTIVE_LIST = 1,
+	LOSS_RECOVERY_LIST = 2,
+};
+
+struct gro_flow_entry {
+
+	// ip addresses and tcp ports
+	__be32 ip_src;
+	__be32 ip_dst;
+	__be16 tcp_src;
+	__be16 tcp_dst;
+
+	// next sequence number expected
+	u32 seq_next;
+
+	// first sequence number lost
+	u32 seq_lost;
+
+	// when the flow is flushed for the last time
+	u64	flush_timestamp;
+
+	// which flow management list is this flow in
+	
+
+	// a list of flow_entry in a bucket of gro_table
+	struct list_head gro_table_list;
+
+	// the entry is in the active list, loss recovery list or the inactive list
+	struct list_head flow_management_list;
+
+	// OOO queue of the flow
+	struct sk_buff_head out_of_order_queue; 
+};
+
 /*
  * Structure for NAPI scheduling similar to tasklet but with weighting
  */
+#define GRO_TABLE_SIZE 32
+#define GRO_TABLE_MASK 0x1f
+
 struct napi_struct {
 	/* The poll_list must only be managed by the entity which
 	 * changes the state of the NAPI_STATE_SCHED bit.  This means
@@ -323,6 +362,10 @@ struct napi_struct {
 
 	struct sk_buff_head_gro *out_of_order_queue_list;
 	struct sk_buff_head_gro *out_of_order_queue_last;
+	struct list_head	gro_table[GRO_TABLE_SIZE];
+	struct list_head	active_list;
+	struct list_head	inactive_list;
+	struct list_head	loss_recovery_list;
 };
 
 enum {
