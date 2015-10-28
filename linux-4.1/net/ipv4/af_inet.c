@@ -1286,7 +1286,7 @@ out:
 	return segs;
 }
 
-static struct sk_buff **inet_gro_receive(struct napi_struct *napi,
+static bool inet_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb)
 {
 	struct sk_buff **head = &napi->gro_list;
@@ -1373,7 +1373,7 @@ static struct sk_buff **inet_gro_receive(struct napi_struct *napi,
 	skb_gro_pull(skb, sizeof(*iph));
 	skb_set_transport_header(skb, skb_gro_offset(skb));
 
-	pp = ops->callbacks.gro_receive(napi, skb);
+	return ops->callbacks.gro_receive(napi, skb);
 
 out_unlock:
 	rcu_read_unlock();
@@ -1652,8 +1652,8 @@ static int __init ipv4_offload_init(void)
 	/*
 	 * Add offloads
 	 */
-	if (udpv4_offload_init() < 0)
-		pr_crit("%s: Cannot add UDP protocol offload\n", __func__);
+	//if (udpv4_offload_init() < 0)
+	//	pr_crit("%s: Cannot add UDP protocol offload\n", __func__);
 	if (tcpv4_offload_init() < 0)
 		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
 

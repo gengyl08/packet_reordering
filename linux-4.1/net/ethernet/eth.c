@@ -391,6 +391,7 @@ ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len)
 }
 EXPORT_SYMBOL(sysfs_format_mac);
 
+/*
 struct sk_buff **eth_gro_receive(struct sk_buff **head,
 				 struct sk_buff *skb)
 {
@@ -444,7 +445,7 @@ out:
 	return pp;
 }
 EXPORT_SYMBOL(eth_gro_receive);
-
+*/
 int eth_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	struct ethhdr *eh = (struct ethhdr *)(skb->data + nhoff);
@@ -465,7 +466,7 @@ int eth_gro_complete(struct sk_buff *skb, int nhoff)
 	return err;
 }
 EXPORT_SYMBOL(eth_gro_complete);
-
+/*
 static struct packet_offload eth_packet_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_TEB),
 	.callbacks = {
@@ -473,7 +474,7 @@ static struct packet_offload eth_packet_offload __read_mostly = {
 		.gro_complete = eth_gro_complete,
 	},
 };
-
+*/
 static int __init eth_offload_init(void)
 {
 	//dev_add_offload(&eth_packet_offload);

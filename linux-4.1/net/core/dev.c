@@ -4238,7 +4238,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 						NAPI_GRO_CB(skb)->csum_valid = 0;
 				}
 
-				pp = ptype->callbacks.gro_receive(napi, skb);
+				ptype->callbacks.gro_receive(napi, skb);
 				break;
 		}
 		rcu_read_unlock();
