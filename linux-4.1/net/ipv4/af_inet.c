@@ -1286,9 +1286,10 @@ out:
 	return segs;
 }
 
-static struct sk_buff **inet_gro_receive(struct sk_buff **head,
+static struct sk_buff **inet_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb)
 {
+	struct sk_buff **head = *napi->gro_list;
 	const struct net_offload *ops;
 	struct sk_buff **pp = NULL;
 	struct sk_buff *p;
