@@ -1289,7 +1289,7 @@ out:
 static struct sk_buff **inet_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb)
 {
-	struct sk_buff **head = *napi->gro_list;
+	struct sk_buff **head = &napi->gro_list;
 	const struct net_offload *ops;
 	struct sk_buff **pp = NULL;
 	struct sk_buff *p;
@@ -1373,7 +1373,7 @@ static struct sk_buff **inet_gro_receive(struct napi_struct *napi,
 	skb_gro_pull(skb, sizeof(*iph));
 	skb_set_transport_header(skb, skb_gro_offset(skb));
 
-	pp = ops->callbacks.gro_receive(head, skb);
+	pp = ops->callbacks.gro_receive(napi, skb);
 
 out_unlock:
 	rcu_read_unlock();
