@@ -294,17 +294,26 @@ struct netdev_boot_setup {
 int __init netdev_boot_setup(char *str);
 
 enum {
-	FLOW_MANAGEMENT_LIST_NONE = 0,
-	FLOW_MANAGEMENT_LIST_ACTIVE = 1,
-	FLOW_MANAGEMENT_LSIT_INACTIVE = 2,
-	FLOW_MANAGEMENT_LIST_LOSS_RECOVERY = 3,
+	GRO_PHASE_VOID = 0,
+	GRO_PHASE_BUILD = 1,
+	GRO_PHASE_ACTIVE = 2,
+	GRO_PHASE_INACTIVE = 3,
+	GRO_PHASE_LOSS_RECOVERY = 4,
 };
 
 struct gro_flow_entry {
 
-	// ip addresses and tcp ports
+	// level 2 flow match
+	u32 hash;
+	struct net_device *dev;
+	u16 vlan_tci;
+	char mac_header[ETH_HLEN];	
+
+	// level 3 flow match
 	__be32 ip_src;
 	__be32 ip_dst;
+
+	// level 4 flow match
 	__be16 tcp_src;
 	__be16 tcp_dst;
 
@@ -317,8 +326,8 @@ struct gro_flow_entry {
 	// when the flow is flushed for the last time
 	u64	flush_timestamp;
 
-	// which flow management list is this flow in
-	u8	flow_management_list_id;
+	// phase in the flow life cycle
+	u8	phase;
 
 	// a list of flow_entry in a bucket of gro_table
 	struct list_head gro_table_list;
@@ -2009,6 +2018,16 @@ struct napi_gro_cb {
 
 	/* used in skb_gro_receive() slow path */
 	struct sk_buff *last;
+
+	struct iphdr *iph;
+
+	struct tcphdr *th;
+
+	u32 seq;
+
+	u32 len;
+
+	bool napi_gro_frags;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)

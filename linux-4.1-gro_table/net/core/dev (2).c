@@ -4029,143 +4029,6 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 	}
 }
 
-static void gro_flush_skb(struct sk_buff *skb)
-{
-	struct iphdr *iph = ip_hdr(skb);
-	struct tcphdr *th = tcp_hdr(skb);	
-
-	if (NAPI_GRO_CB(skb)->count == 1) {
-		skb_shinfo(skb)->gso_size = 0;
-		goto out;
-	}
-
-	if (skb->encapsulation)
-		skb_set_inner_network_header(skb, 0);
-
-	csum_replace2(&iph->check, iph->tot_len, htons(skb->len));
-	iph->tot_len = newlen;
-
-	th->check = ~tcp_v4_check(skb->len - sizeof(*iph), iph->saddr,
-				  iph->daddr, 0);
-	skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
-
-	skb->csum_start = (unsigned char *)th - skb->head;
-	skb->csum_offset = offsetof(struct tcphdr, check);
-	skb->ip_summed = CHECKSUM_PARTIAL;
-	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
-	if (th->cwr)
-		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
-
-out:
-	netif_receive_skb_internal(skb);
-	return;
-}
-
-static void gro_flow_complete(struct napi_struct *napi,
-			      struct gro_flow_entry *flow_entry,
-			      bool flush_old)
-{
-	if ()
-}
-
-static struct gro_flow_entry *gro_get_flow_entry(struct napi_struct *napi,
-						 struct sk_buff *skb)
-{
-	u32 hash = skb_get_hash_raw(skb);
-	struct list_head *gro_table_list = napi->gro_table +
-		(hash & GRO_TABLE_MASK);
-	struct list_head *cursor;
-	struct gro_flow_entry *flow_entry;
-	struct iphdr *iph = NAPI_GRO_CB(skb)->iph;
-	struct tcphdr *th = NAPI_GRO_CB(skb)->th;
-
-	list_for_each(cursor, gro_table_list) {
-		flow_entry = list_entry(cursor, struct gro_flow_entry,
-			gro_table_list);
-
-		if (flow_entry->hash == hash &&
-			flow_entry->dev == skb->dev &&
-			flow_entry->vlan_tci == skb->vlan_tci &&
-			!compare_ether_header(flow_entry->mac_header,
-					      skb_mac_header(skb)) &&
-			flow_entry->ip_src == iph->saddr &&
-			flow_entry->ip_dst == iph->daddr &&
-			flow_entry->tcp_src == th->source &&
-			flow_entry->tcp_dst == th->dest) {
-
-			return flow_entry;
-		}
-	}
-
-	return NULL;
-}
-
-static struct gro_flow_entry
-	*gro_evict_and_init_flow_entry(struct napi_struct *napi,
-				       struct sk_buff *skb)
-{
-	struct gro_flow_entry *flow_entry;
-	u32 hash = skb_get_hash_raw(skb);
-	struct iphdr *iph = NAPI_GRO_CB(skb)->iph;
-	struct tcphdr *th = NAPI_GRO_CB(skb)->th;
-	struct list_head *gro_table_list = napi->gro_table +
-		(hash & GRO_TABLE_MASK);
-	struct sk_buff *skb_tmp;
-
-
-	if (!list_empty(napi->inactive_list)) {
-		flow_entry = list_entry(napi->inactive_list->prev,
-			struct gro_flow_entry, flow_management_list);
-	} else if (!list_empty(napi->active_list)) {
-		flow_entry = list_entry(napi->active_list->prev,
-			struct gro_flow_entry, flow_management_list);
-	} else {
-		flow_entry = list_entry(napi->loss_recovery_list->prev,
-			struct gro_flow_entry, flow_management_list);
-	}
-
-	// list management
-	list_del_init(flow_entry->gro_table_list);
-	list_del_init(flow_entry->flow_management_list);
-	list_add(flow_entry->gro_table_list, gro_table_list);
-	list_add(flow_entry->flow_management_list, napi->active_list);
-
-	// clear out of order queue
-	while (skb_tmp = skb_dequeue(flow_entry->out_of_order_queue))
-		gro_flush_skb(skb_tmp);
-
-	// initialize flow
-	flow_entry->hash = hash;
-	flow_entry->dev = skb->dev;
-	flow_entry->vlan_tci = skb->vlan_tci;
-	memcpy(flow_entry->mac_header, skb_mac_header(skb), ETH_HLEN);
-	flow_entry->ip_src = iph->saddr;
-	flow_entry->ip_dst = iph->daddr;
-	flow_entry->tcp_src = th->source;
-	flow_entry->tcp_dst = th->dest;
-	flow_entry->seq_next = NAPI_GRO_CB(skb)->seq;
-	flow_entry->flush_timestamp = ktime_to_ns(ktime_get());
-	flow_entry->phase = GRO_PHASE_BUILD;
-
-	return flow_entry;
-}
-
-// return the number of bytes flushed
-static unsigned gro_insert_skb(struct gro_flow_entry *flow_entry,
-			       struct sk_buff *skb)
-{
-	u32 seq = NAPI_GRO_CB(skb)->seq;
-	u32 len = NAPI_GRO_CB(skb)->len;
-
-	if (before(seq, flow_entry->seq_next)) {
-		if (flow_entry->phase != GRO_PHASE_BUILD) {
-			
-		} else {
-			flow_entry->seq_next = seq;
-		}
-	}
-}
-
 static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
@@ -4178,19 +4041,13 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	unsigned int hlen;
 	unsigned int thlen;
 	unsigned int off;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct tcphdr *th;
 	unsigned int id;
 	bool flush = false;
-	struct gro_flow_entry *flow_entry;
-	__be32 flags;
 
 	// flush if not ipv4
 	if (type != cpu_to_be16(ETH_P_IP))
-		goto normal;
-
-	// flush if not standard ethernet header length
-	if (skb->dev->hard_header_len != ETH_HLEN)
 		goto normal;
 
 	if (!(skb->dev->features & NETIF_F_GRO))
@@ -4233,27 +4090,23 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 			goto normal;
 	}
 
-	// flush if not tcp
+	// check layer 4 protocol
 	if (iph->protocol != IPPROTO_TCP)
 		goto normal;
 	
-	// flush if not standard ip header length
 	if (*(u8 *)iph != 0x45)
 		goto normal;
 
-	// flush if bad ip checksum
 	if (unlikely(ip_fast_csum((u8 *)iph, 5)))
 		goto normal;
 	
-	// flush packet and flow if packet length doesn't match ip header
-	// and this is a fragmented packet
+	// TODO: this should also flush the flow
 	id = ntohl(*(__be32 *)&iph->id);
 	if ((u16)((ntohl(*(__be32 *)iph) ^ skb_gro_len(skb)) | (id & ~IP_DF)))
 		flush = true;
 	id >>= 16;
 
-	// flush if bad tcp checksum
-	if (!flush && skb_gro_checksum_validate(skb, IPPOTO_TCP, inet_gro_compute_pseudo))
+	if (skb_gro_checksum_validate(skb, IPPOTO_TCP, inet_gro_compute_pseudo))
 		goto normal;
 
 	skb_gro_pull(skb, sizeof(*iph));
@@ -4285,30 +4138,14 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 	skb_gro_pull(skb, thlen);
 
-	flags = tcp_flag_word(th);
-
-	NAPI_GRO_CB(skb)->iph = iph;
-	NAPI_GRO_CB(skb)->th = th;
-	NAPI_GRO_CB(skb)->seq = ntohl(th->seq);
-	NAPI_GRO_CB(skb)->len = skb_gro_len(skb);
-
 	// get flow_entry
-	flow_entry = gro_get_flow_entry(napi, skb);
-	if (flow_entry == NULL) {
-		flow_entry = gro_evict_and_init_flow_entry(napi, skb);
-	}
+	
 
-	// flush packet and flow if packet length doesn't match ip header
-	// and this is a fragmented packet
-	if (flush) {
-		goto flush;
-	}
+	// check mac header
 
-	// flush packet and flow is the packet contains these flags
-	if ((__force int)(flags & (TCP_FLAG_RST | TCP_FLAG_SYN | TCP_FLAG_FIN |
-		TCP_FLAG_URG))) {
-		goto flush;
-	}
+	// check ip header
+
+	// check tcp header
 
 	// insert packet
 	
@@ -4399,9 +4236,6 @@ pull:
 ok:
 	return ret;
 
-flush:
-	gro_flow_complete(flow_entry);
-
 normal:
 	ret = GRO_NORMAL;
 	goto pull;
@@ -4467,8 +4301,6 @@ gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	trace_napi_gro_receive_entry(skb);
 
 	skb_gro_reset_offset(skb);
-
-	NAPI_GRO_CB(skb)->napi_gro_frags = false;
 
 	return napi_skb_finish(dev_gro_receive(napi, skb), skb);
 }
@@ -4577,8 +4409,6 @@ gro_result_t napi_gro_frags(struct napi_struct *napi)
 		return GRO_DROP;
 
 	trace_napi_gro_frags_entry(skb);
-
-	NAPI_GRO_CB(skb)->napi_gro_frags = true;
 
 	return napi_frags_finish(napi, skb, dev_gro_receive(napi, skb));
 }
